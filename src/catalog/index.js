@@ -1237,10 +1237,13 @@ function updateCartItemDisplay(itemEl, item, itemId){
     setText(tSpan, item.name);
   }
   
-  // Обновляем категорию (всегда)
+  // Обновляем категорию (всегда). Для туй (одна категория) и пустой категории — прячем плашку.
   if(cached.cEl){
     const cSpan = cached.cEl.querySelector('.text-block-wrap-div') || cached.cEl;
-    setText(cSpan, item.category || '');
+    const catText = String(item.category || '').trim();
+    const hideCat = !catText || catText.toLowerCase() === 'туя';
+    setText(cSpan, hideCat ? '' : catText);
+    cached.cEl.style.display = hideCat ? 'none' : '';
   }
   
   // Обновляем размер (всегда)
