@@ -117,7 +117,7 @@ function ensureImg(w){
 }
     
     
-function refreshExtraPhotos(card, catKey, photoList){
+function refreshExtraPhotos(card, catKey, photoList, showAll){
   const wraps = Array.from(card.querySelectorAll(EXTRA_IMG_WRAP_SEL));
   if(!wraps.length) return;
 
@@ -128,16 +128,29 @@ function refreshExtraPhotos(card, catKey, photoList){
   const catSlots  = hasDataCat ? wraps.filter(w => w.hasAttribute('data-cat')) : wraps.slice(0, 4);
   const csvSlots  = hasDataCat ? wraps.filter(w => !w.hasAttribute('data-cat')) : wraps.slice(4);
 
-  // 1) Категорийные слоты: ничего не меняем, только показываем нужный, остальные прячем
-  const byCat = new Map();
-  catSlots.forEach(w => byCat.set(normCat(w.dataset.cat || ''), w));
+  // есть ли в слоте реальное фото (а не заглушка/пусто)
+  const slotHasPhoto = w => {
+    const img = w.querySelector('img');
+    const src = img?.getAttribute('src') || img?.getAttribute('data-origin-src') || img?.getAttribute('data-src') || '';
+    return !!src && !/placeholder/i.test(src) && src !== '/d/' && !/\/d\/?$/.test(src);
+  };
 
-  let target = byCat.get(want);
-  if(!target){
-    const idx = Math.max(0, CAT_ORDER.indexOf(want));
-    target = catSlots[idx] || null;
+  if (showAll) {
+    // Туи и товары с одной категорией: показываем ВСЕ категорийные слоты с реальным фото
+    // (это галерея ракурсов, не зависящая от категории)
+    catSlots.forEach(w => { w.style.display = slotHasPhoto(w) ? '' : 'none'; });
+  } else {
+    // 1) Категорийные слоты: показываем только слот текущей категории, остальные прячем
+    const byCat = new Map();
+    catSlots.forEach(w => byCat.set(normCat(w.dataset.cat || ''), w));
+
+    let target = byCat.get(want);
+    if(!target){
+      const idx = Math.max(0, CAT_ORDER.indexOf(want));
+      target = catSlots[idx] || null;
+    }
+    catSlots.forEach(w => { w.style.display = (w === target) ? '' : 'none'; });
   }
-  catSlots.forEach(w => { w.style.display = (w === target) ? '' : 'none'; });
 
   // 2) CSV-слоты: заполняем ссылками, лишние скрываем
   const urls = (photoList || []).slice(0, csvSlots.length);
@@ -770,7 +783,7 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
       updatePhotos(card, curCatKey);                 // обновили главное фото и card.__curPhoto
 
       const phList = getCsvPhotos(entry, curCatKey); // собираем ссылки из таблицы
-      refreshExtraPhotos(card, curCatKey, phList);   // 4 слота — категории, 6 слотов — CSV
+      refreshExtraPhotos(card, curCatKey, phList, singleCategory);   // туи: показать все ракурсы
 
       setDescForCategory(curCatKey);
     });
@@ -795,7 +808,7 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
     renderHeights();
     updatePhotos(card, curCatKey);
     const phList0 = getCsvPhotos(entry, curCatKey);
-    refreshExtraPhotos(card, curCatKey, phList0);
+    refreshExtraPhotos(card, curCatKey, phList0, singleCategory);
     setDescForCategory(curCatKey);
   });
 })();
