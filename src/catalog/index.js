@@ -732,8 +732,15 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
 
       // визуал карточки
       if(priceNode) setText(priceNode, rub(o.price));
-      if(diamEl)    setText(diamEl, o.diam ? `${o.diam} см` : '');
-      if(brEl)      setText(brEl,  o.branches ? `${o.branches} шт.` : '');
+      // диаметр / кол-во веток: если значения нет — прячем всю строку свойства
+      const setProp = (el, val, suffix) => {
+        if (!el) return;
+        const line = el.closest('.list__item') || el;
+        if (val) { setText(el, `${val} ${suffix}`); line.style.display = ''; }
+        else { setText(el, ''); if (line !== el) line.style.display = 'none'; }
+      };
+      setProp(diamEl, o.diam, 'см');
+      setProp(brEl,   o.branches, 'шт.');
       setText(hTextEl, `${o.height} см`);
         
       // старая цена
