@@ -1055,6 +1055,43 @@ let popupCache = {
   divider: null
 };
 
+// === Лайтбокс для фото в корзине ===
+// Taptop вешает свой просмотрщик на картинки при загрузке страницы, а фото корзины
+// подставляются скриптом позже — поэтому штатная лупа не срабатывает. Делаем свой.
+function openLightbox(src){
+  if(!src) return;
+  let ov = document.getElementById('le-lightbox');
+  if(!ov){
+    ov = document.createElement('div');
+    ov.id = 'le-lightbox';
+    Object.assign(ov.style,{
+      position:'fixed', inset:'0', zIndex:'2147483647',
+      background:'rgba(0,0,0,.85)', display:'flex', alignItems:'center',
+      justifyContent:'center', cursor:'zoom-out', padding:'24px'
+    });
+    const im = document.createElement('img');
+    Object.assign(im.style,{ maxWidth:'95%', maxHeight:'95%', objectFit:'contain', borderRadius:'8px' });
+    ov.appendChild(im);
+    ov.addEventListener('click', ()=>{ ov.style.display='none'; });
+    document.addEventListener('keydown', e=>{ if(e.key==='Escape') ov.style.display='none'; });
+    document.body.appendChild(ov);
+  }
+  ov.querySelector('img').src = src;
+  ov.style.display = 'flex';
+}
+
+let cartLightboxInited = false;
+function initCartLightbox(){
+  if (cartLightboxInited) return; cartLightboxInited = true;
+  document.addEventListener('click', e=>{
+    const img = e.target.closest('[data-cart-photo] img');
+    if(!img) return;
+    e.preventDefault(); e.stopPropagation();
+    openLightbox(img.getAttribute('data-origin-src') || img.getAttribute('src'));
+  }, true); // capture — чтобы сработать раньше других обработчиков и не закрыть попап
+}
+initCartLightbox();
+
 // Заполняет попап всеми товарами из корзины (упрощенная версия)
 function fillPopup(){
   if(!popup) return;
@@ -1225,6 +1262,7 @@ function updateCartItemDisplay(itemEl, item, itemId){
       cached.img.src = item.photo;
       cached.img.setAttribute('data-origin-src', item.photo);
       cached.img.alt = item.name;
+      cached.img.classList.add('can-zoom');   // курсор-лупа (Taptop CSS) единообразно у всех фото корзины
     } else if(item.photo && !cached.img){
       cached.ph.style.backgroundImage = `url(${item.photo})`;
       cached.ph.setAttribute('aria-label', item.name);
