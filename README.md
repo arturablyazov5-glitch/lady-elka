@@ -31,8 +31,10 @@ dist/               # СБОРКА (не в git) — то, что грузишь
   catalog.js
   catalog.css
 build.mjs           # сборщик (esbuild)
-Переменные окружения.example.ini   # шаблон env (реальные значения — в .gitignore + консоли YC)
 ```
+
+> Реальные значения env-переменных лежат локально в `Переменные окружения.ini`
+> (этот файл в `.gitignore`, в репо не попадает) и в консоли Yandex Cloud.
 
 ## Как собрать и обновить сайт
 
@@ -55,5 +57,6 @@ npm run build      # собирает dist/catalog.js + dist/catalog.css
 
 ## Бэкенд (Yandex Cloud)
 
-Один файл `backend/index.js`. Переменные окружения — см. `Переменные окружения.example.ini`.
+Один файл `backend/index.js`. Переменные окружения задаются в консоли Yandex Cloud
+(`TG_BOT_TOKEN`, `PK_HOST`, `TG_CHAT_IDS`, `PK_PASS`, `HOOK_SECRET`, `CORS_ORIGIN`, `PK_USER`).
 Точка входа: `index.handler`, runtime Node.js 22.
