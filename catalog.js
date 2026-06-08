@@ -1068,6 +1068,9 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
     };
     const catKeysOrdered = catKeys.slice().sort((a,b)=>ord(a)-ord(b));
 
+    // Туи и любые товары с единственной категорией: дропдаун категории не нужен.
+    const singleCategory = catKeysOrdered.length <= 1;
+
     // дефолтная категория: из текста или первая по порядку
     let curCatKey = (()=>{ 
       const def = normCat(catTextEl.textContent||''); 
@@ -1092,6 +1095,11 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
               </button>`;
     }).join('');
     attachHover(catList);
+
+    // Туи: скрываем плашку категории целиком, остаётся только высота.
+    if (singleCategory) {
+      catLabel.style.display = 'none';
+    }
 
     // размеры (ТОЛЬКО размер без цены)
     function renderHeights(){
@@ -1160,7 +1168,7 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
     }
 
     // открыть/закрыть выпадашки
-    catLabel.addEventListener('click', e=>{
+    if (!singleCategory) catLabel.addEventListener('click', e=>{
       if(e.target.closest('[data-dd-option]')) return;
       const shown = catList.style.display !== 'none';
       closeAllDD();
