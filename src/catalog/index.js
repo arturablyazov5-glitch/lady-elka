@@ -1072,6 +1072,19 @@ function openLightbox(src){
     const im = document.createElement('img');
     Object.assign(im.style,{ maxWidth:'95%', maxHeight:'95%', objectFit:'contain', borderRadius:'8px' });
     ov.appendChild(im);
+
+    // крестик закрытия (как у штатного просмотрщика Taptop)
+    const btn = document.createElement('button');
+    btn.setAttribute('aria-label','Закрыть');
+    btn.textContent = '×';
+    Object.assign(btn.style,{
+      position:'absolute', top:'24px', right:'24px', width:'40px', height:'40px',
+      borderRadius:'10px', border:'0', background:'rgba(255,255,255,.12)', color:'#fff',
+      fontSize:'24px', lineHeight:'40px', cursor:'pointer', padding:'0'
+    });
+    btn.addEventListener('click', e=>{ e.stopPropagation(); ov.style.display='none'; });
+    ov.appendChild(btn);
+
     ov.addEventListener('click', ()=>{ ov.style.display='none'; });
     document.addEventListener('keydown', e=>{ if(e.key==='Escape') ov.style.display='none'; });
     document.body.appendChild(ov);
