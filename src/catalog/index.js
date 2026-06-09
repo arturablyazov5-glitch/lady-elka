@@ -166,6 +166,19 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
       w.style.display = 'none';
     }
   });
+
+  // Если ни одного фото в «Ещё фото» не показано — прячем весь блок (заголовок + слоты).
+  // Блоков .dop__img__cms может быть два вложенных: внешний с заголовком + внутренний со слотами.
+  // Поднимаемся до САМОГО ВЕРХНЕГО — он содержит и заголовок «Ещё фото», и слоты.
+  const anyShown = wraps.some(w => w.style.display !== 'none');
+  let section = wraps[0].closest('.dop__img__cms');
+  while (section && section.parentElement) {
+    const up = section.parentElement.closest('.dop__img__cms');
+    if (!up) break;
+    section = up;
+  }
+  if (section) section.style.display = anyShown ? '' : 'none';
+
   card.setAttribute('data-photos-ready','');
 }
 
