@@ -168,14 +168,18 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
   });
 
   // Если ни одного фото в «Ещё фото» не показано — прячем весь блок (заголовок + слоты).
-  // Блоков .dop__img__cms может быть два вложенных: внешний с заголовком + внутренний со слотами.
-  // Поднимаемся до САМОГО ВЕРХНЕГО — он содержит и заголовок «Ещё фото», и слоты.
+  // Надёжный хук — атрибут data-extra-photos на блоке «Ещё фото» (проставь в Taptop).
+  // Fallback (если атрибута нет): поднимаемся до самого верхнего .dop__img__cms —
+  // он содержит и заголовок, и слоты (их бывает два вложенных).
   const anyShown = wraps.some(w => w.style.display !== 'none');
-  let section = wraps[0].closest('.dop__img__cms');
-  while (section && section.parentElement) {
-    const up = section.parentElement.closest('.dop__img__cms');
-    if (!up) break;
-    section = up;
+  let section = card.querySelector('[data-extra-photos]');
+  if (!section) {
+    section = wraps[0].closest('.dop__img__cms');
+    while (section && section.parentElement) {
+      const up = section.parentElement.closest('.dop__img__cms');
+      if (!up) break;
+      section = up;
+    }
   }
   if (section) section.style.display = anyShown ? '' : 'none';
 
