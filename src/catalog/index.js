@@ -1055,53 +1055,30 @@ let popupCache = {
   divider: null
 };
 
-// === Лайтбокс для фото в корзине ===
-// Taptop вешает свой просмотрщик на картинки при загрузке страницы, а фото корзины
-// подставляются скриптом позже — поэтому штатная лупа не срабатывает. Делаем свой.
-function openLightbox(src){
-  if(!src) return;
-  let ov = document.getElementById('le-lightbox');
-  if(!ov){
-    ov = document.createElement('div');
-    ov.id = 'le-lightbox';
-    Object.assign(ov.style,{
-      position:'fixed', inset:'0', zIndex:'2147483647',
-      background:'rgba(0,0,0,.85)', display:'flex', alignItems:'center',
-      justifyContent:'center', cursor:'zoom-out', padding:'24px'
-    });
-    const im = document.createElement('img');
-    Object.assign(im.style,{ maxWidth:'95%', maxHeight:'95%', objectFit:'contain', borderRadius:'8px' });
-    ov.appendChild(im);
-
-    // крестик закрытия (как у штатного просмотрщика Taptop)
-    const btn = document.createElement('button');
-    btn.setAttribute('aria-label','Закрыть');
-    btn.textContent = '×';
-    Object.assign(btn.style,{
-      position:'absolute', top:'24px', right:'24px', width:'40px', height:'40px',
-      borderRadius:'10px', border:'0', background:'rgba(255,255,255,.12)', color:'#fff',
-      fontSize:'24px', lineHeight:'40px', cursor:'pointer', padding:'0'
-    });
-    btn.addEventListener('click', e=>{ e.stopPropagation(); ov.style.display='none'; });
-    ov.appendChild(btn);
-
-    ov.addEventListener('click', ()=>{ ov.style.display='none'; });
-    document.addEventListener('keydown', e=>{ if(e.key==='Escape') ov.style.display='none'; });
-    document.body.appendChild(ov);
-  }
-  ov.querySelector('img').src = src;
-  ov.style.display = 'flex';
-}
-
+// === Фото корзины → открываем ШТАТНЫЙ лайтбокс izo (#img-zoom-overlay) ===
+// Свой лайтбокс НЕ делаем (один источник правды). Проблема в том, что Taptop
+// (do.tt_link_universal.js) вешает на элементы корзины обработчик с stopPropagation,
+// поэтому делегированный обработчик izo (слушает document в bubble-фазе) НЕ получает
+// клик по фото корзины. Ловим клик в CAPTURE-фазе (раньше Taptop) и сами открываем
+// тот же izo-оверлей — его стили, крестик и закрытие (фон/Esc) работают штатно.
 let cartLightboxInited = false;
 function initCartLightbox(){
   if (cartLightboxInited) return; cartLightboxInited = true;
   document.addEventListener('click', e=>{
     const img = e.target.closest('[data-cart-photo] img');
     if(!img) return;
+    const overlay = document.getElementById('img-zoom-overlay');
+    const holder  = overlay && overlay.querySelector('.izo-holder');
+    if(!overlay || !holder) return; // izo не загрузился — ничего не навязываем
     e.preventDefault(); e.stopPropagation();
-    openLightbox(img.getAttribute('data-origin-src') || img.getAttribute('src'));
-  }, true); // capture — чтобы сработать раньше других обработчиков и не закрыть попап
+    holder.innerHTML = '';
+    const node = img.cloneNode(true);
+    node.classList.add('izo-media');
+    node.loading = 'eager'; node.decoding = 'sync';
+    holder.appendChild(node);
+    overlay.classList.add('izo-open');
+    document.documentElement.style.overflow = 'hidden';
+  }, true); // capture — раньше, чем Taptop остановит всплытие
 }
 initCartLightbox();
 
