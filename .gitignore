@@ -12,3 +12,6 @@ dist/
 Переменные окружения.ini
 .env
 .env.local
+
+# Supabase CLI local state
+supabase/.temp/

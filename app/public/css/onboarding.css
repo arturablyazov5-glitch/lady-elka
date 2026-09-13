@@ -1,0 +1,33 @@
+#onboarding{width:660px;max-height:94dvh;overflow:auto}
+#onboarding .tour-art{height:336px;padding:18px;background:#f5f5f7}
+.tour-demo{width:100%;max-width:490px;background:white;border:1px solid #e8e8ed;border-radius:16px;padding:18px;box-sizing:border-box}
+.tour-demo-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;font-size:14px}
+.tour-demo-caption,.tour-demo small{font-size:11px;line-height:16px;color:#707070;font-weight:400}
+.tour-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #b8d7f7;border-radius:10px;font-size:12px}
+.tour-search .icon,.tour-note .icon,.tour-upload .icon{width:16px;height:16px;flex-shrink:0}
+.tour-caret{height:14px;width:1px;background:var(--blue)}
+.tour-chips{display:flex;gap:5px;flex-wrap:wrap;margin:12px 0;font-size:10px}
+.tour-chips>span{padding:7px 9px;border-radius:8px;background:#f5f5f7;color:#707070}
+.tour-chips .chosen{background:#eaf3ff;color:var(--blue)}.tour-chips b{font-weight:500;margin-left:4px}
+.tour-product{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid #eeeef1}
+.tour-thumb{height:72px;width:55px;border-radius:8px;background:#f5f5f7;overflow:hidden;display:grid;place-items:center}
+.tour-thumb img{width:100%;height:100%;object-fit:contain}
+.tour-product>div:nth-child(2){display:grid;gap:5px}.tour-product strong{font-size:13px}.tour-product-price{margin-left:auto;display:grid;gap:10px;justify-items:end}
+.tour-edit{display:grid;place-items:center;background:#f5f5f7;border-radius:8px;width:28px;height:28px}.tour-edit .icon{width:14px;height:14px}
+.tour-status{font-size:10px;color:#287349;display:inline-flex;align-items:center;gap:5px}.tour-status:before{content:'';width:5px;height:5px;border-radius:50%;background:#39a566}
+.tour-note{display:flex;align-items:center;gap:8px;padding-top:12px;margin-top:4px;border-top:1px solid #eeeef1;color:#707070;font-size:11px;line-height:16px}.tour-note .icon{color:var(--blue)}
+.tour-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tour-fields>div{display:grid;gap:6px;padding:10px 12px;background:#f5f5f7;border-radius:10px}.tour-fields strong{font-size:21px}.tour-fields em{font-size:14px;font-weight:400;font-style:normal;color:#707070}
+.tour-calculation{display:flex;align-items:center;justify-content:center;gap:24px;padding:22px 0}.tour-calculation>div{display:grid;gap:6px}.tour-calculation strong{font-size:21px}.tour-arrow{color:#8c8c94}.tour-old{display:flex;align-items:center;gap:8px;font-size:11px;color:#707070}.tour-old>span{color:#ba3545;background:#fff0f1;padding:3px 6px;border-radius:6px}
+.tour-demo-tabs{display:flex;gap:20px;font-size:11px;border-bottom:1px solid #e8e8ed}.tour-demo-tabs>*{padding:5px 0 9px}.tour-demo-tabs strong{border-bottom:2px solid var(--blue)}.tour-demo-tabs>span{color:#707070}
+.tour-size-label,.tour-size-row{display:grid;grid-template-columns:1fr 1fr 60px;align-items:center;gap:12px;font-size:12px;padding:8px 0}.tour-size-label{font-size:10px;color:#707070;padding-bottom:3px}.tour-size-row{border-bottom:1px solid #f0f0f3}.tour-size-row:last-of-type{border:0}
+.tour-switch{display:block;width:28px;height:16px;border-radius:20px;background:#d5d5dc;position:relative;justify-self:center}.tour-switch:after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:white;top:2px;left:2px}.tour-switch.on{background:var(--blue)}.tour-switch.on:after{left:14px}
+.tour-promo-code{display:flex;gap:12px;align-items:center;padding:11px 0}.tour-promo-code>strong{font-size:18px}.tour-promo-code .tour-switch{margin-left:auto}
+.tour-benefits{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}.tour-benefits>span{display:flex;justify-content:space-between;gap:8px;padding:10px;background:#f5f5f7;border-radius:8px;font-size:11px;color:#707070}.tour-benefits b{color:#1d1d1f}
+.tour-receipt{font-size:12px}.tour-receipt>div{display:flex;justify-content:space-between;padding:6px 0}.tour-receipt .tour-total{border-top:1px dashed #dcdce2;margin-top:5px;padding-top:10px;font-size:15px}
+.tour-gallery{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.tour-gallery-item{border:1px solid #e8e8ed;border-radius:10px;overflow:hidden}.tour-gallery-photo{height:132px;position:relative;background:#f5f5f7;display:grid;place-items:center}.tour-gallery-photo img{width:100%;height:100%;object-fit:contain}.tour-gallery-photo>span{position:absolute;left:6px;bottom:6px;border-radius:5px;background:white;padding:3px 6px;font-size:9px}.tour-gallery-tools{display:flex;justify-content:space-between;padding:6px 10px;color:#85858d}.tour-gallery-tools .icon{width:12px;height:12px}.tour-gallery-item:first-child .tour-gallery-tools{color:var(--blue)}
+.tour-gallery-photo{overflow:hidden;grid-template-rows:minmax(0,1fr)}.tour-gallery-photo img{min-height:0;display:block}.tour-gallery-tools{position:relative;background:white}
+.tour-upload{display:flex;align-items:center;justify-content:center;gap:9px;border:1px dashed #ccd6e0;border-radius:10px;margin-top:12px;padding:10px;font-size:11px;color:var(--blue)}.tour-upload small{display:block;font-size:10px}
+.tour-demo-save{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:10px}.tour-demo-save>span{background:var(--blue);color:white;padding:7px 12px;border-radius:20px;font-size:11px;white-space:nowrap}.tour-demo-save small{font-size:10px}
+#onboarding .tour-copy{min-height:156px}
+@media(max-width:600px){#onboarding .tour-art{height:330px;margin:0 12px;padding:10px}.tour-demo{padding:12px}.tour-demo-caption{font-size:9px}.tour-product{gap:8px}.tour-product strong{font-size:11px}.tour-product small{font-size:9px}.tour-calculation{gap:14px}.tour-calculation strong{font-size:18px}.tour-chips>span{padding:6px}.tour-benefits>span{flex-direction:column;gap:3px}.tour-gallery-photo{height:120px}.tour-gallery{gap:6px}.tour-demo-save small{max-width:150px}#onboarding .tour-copy{min-height:0}#onboarding .tour-bottom{gap:8px}.tour-demo-head{font-size:13px}}
+.tour-start{padding:14px 12px 6px}

@@ -1,0 +1,54 @@
+/* Промокоды: список, переключатель и карточка промокода. Токены общие со стилями кабинета. */
+.promo-list{display:flex;flex-direction:column;gap:10px}
+.promo-row{display:flex;align-items:center;gap:16px;background:var(--surface);border:1px solid transparent;border-radius:20px;padding:14px 18px;transition:background-color .15s,border-color .15s}
+.promo-row:hover{border-color:transparent;transform:none;box-shadow:none;background:#fbfbfc}
+.promo-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px}
+.promo-code-line{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.promo-code{font-size:15px;font-weight:700;letter-spacing:-.2px;border:0;background:none;padding:0;color:var(--text);cursor:copy;font-family:inherit}
+.promo-code:hover{color:var(--blue)}
+.promo-badge{font-size:10px;font-weight:600;padding:4px 9px;border-radius:999px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.promo-badge.ok{background:#e7f6ec;color:#157347}
+.promo-badge.off{background:var(--soft);color:var(--muted)}
+.promo-comment{font-size:12px;color:var(--text);margin:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.promo-comment i{color:var(--muted)}
+.promo-meta{display:flex;flex-wrap:wrap;gap:6px;font-size:11px;color:var(--muted);margin:0}
+.promo-gain{font-size:15px;font-weight:600;white-space:nowrap;text-align:right}
+.promo-actions{display:flex;align-items:center;gap:6px}
+.promo-actions .icon-btn{width:32px;height:32px}
+.promo-actions .icon-btn.danger:hover{color:#b42318}
+.promo-toggle{margin-right:4px;flex:none}
+.promo-toggle input:disabled{cursor:progress;opacity:.5}
+.promo-toggle input:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+#promo-dialog{width:560px;max-width:calc(100vw - 24px);border-radius:26px;padding:0;border:0;background:var(--surface)}
+#promo-dialog::backdrop{background:rgba(29,29,31,.35)}
+.promo-form-body{padding:0 26px;display:flex;flex-direction:column;gap:16px;max-height:min(64dvh,560px);overflow:auto}
+.promo-form-body .field small{font-size:11px;color:var(--muted);line-height:16px;font-weight:400}
+.promo-reward{border:1px solid var(--line);border-radius:18px;padding:16px;margin:0;display:flex;flex-direction:column;gap:12px}
+.promo-reward legend{font-size:11px;font-weight:600;color:var(--muted);padding:0 6px;text-transform:uppercase;letter-spacing:.4px}
+.promo-form-body .field-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.promo-form-body .field-hint{font-size:11px;color:var(--muted);margin:0}
+.promo-switch{align-items:flex-start}
+.promo-switch input{margin-top:1px;flex:none}
+.promo-switch span{display:flex;flex-direction:column;gap:3px}
+.promo-switch-card{border:1px solid var(--line);border-radius:18px;padding:16px}
+.promo-switch strong{font-size:12px;font-weight:600}
+.promo-switch small{font-size:11px;color:var(--muted);line-height:16px}
+.promo-preview{padding:16px;border-radius:16px;background:var(--bg)}
+.promo-preview-grid{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.promo-preview-grid>span{display:flex;flex-direction:column;gap:5px}
+.promo-preview small{font-size:10px;color:var(--muted)}
+.promo-preview strong{font-size:19px;font-weight:600}
+.promo-preview-arrow{color:var(--muted);font-size:16px}
+.promo-preview-gift{font-size:11px;color:#157347;background:#e7f6ec;border-radius:999px;padding:6px 10px;font-weight:600}
+.promo-preview-hint{font-size:11px;line-height:17px;color:var(--muted);margin:10px 0 0}
+#promo-dialog .editor-footer{padding:16px 26px 22px}
+#promo-status.error{color:#b42318}
+@media(max-width:760px){
+ .promo-row{flex-wrap:wrap;gap:10px;padding:14px;border-radius:16px}
+ .promo-main{flex:1 1 100%}
+ .promo-gain{flex:1;text-align:left;font-size:14px}
+ .promo-comment{white-space:normal}
+ .promo-form-body{padding:0 18px}
+ .promo-form-body .field-row{grid-template-columns:1fr}
+ #promo-dialog .editor-footer{padding:14px 18px 18px}
+}

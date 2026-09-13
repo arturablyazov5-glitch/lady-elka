@@ -60,3 +60,9 @@ npm run build      # собирает dist/catalog.js + dist/catalog.css
 Один файл `backend/index.js`. Переменные окружения задаются в консоли Yandex Cloud
 (`TG_BOT_TOKEN`, `PK_HOST`, `TG_CHAT_IDS`, `PK_PASS`, `HOOK_SECRET`, `CORS_ORIGIN`, `PK_USER`).
 Точка входа: `index.handler`, runtime Node.js 22.
+
+## Сервис управления каталогом
+
+Новый кабинет, заменяющий Google Sheets: `npm run start:app` → http://localhost:4180/app.
+Данные и фотографии хранятся в Supabase. Подробности, CSV-ссылки и подготовка домена — [app/README.md](app/README.md).
+Существующий сайт пока продолжает читать Google Sheets.

@@ -1,6 +1,90 @@
-// YandexCloud Function
+// Supabase Edge Function (Deno) — порт бывшей YandexCloud Function.
+// Логика платежей PayKeeper + вебхук → Telegram перенесена БЕЗ изменений.
+// Отличается только рантайм-обёртка внизу файла (Deno.serve) и два шима:
+//   - process.env.*  → Deno.env.get (через Proxy)
+//   - Buffer         → node:buffer (base64 для Basic-auth PayKeeper)
+//
+// Деплой:
+//   supabase functions deploy pay --no-verify-jwt
+// Секреты (задать один раз):
+//   supabase secrets set PK_HOST=... PK_USER=... PK_PASS=... HOOK_SECRET=... \
+//                        TG_BOT_TOKEN=... TG_CHAT_IDS=... CORS_ORIGIN=https://lady-elka.ru
+//
+// URL функции после деплоя:
+//   https://<PROJECT_REF>.supabase.co/functions/v1/pay
+// его нужно прописать во фронте: window.PAYMENT_ENDPOINT (src/catalog/index.js).
 
-exports.handler = async (event) => {
+import { Buffer } from 'node:buffer';
+
+const RUSSIAN_TRUSTED_ROOT_CA = `-----BEGIN CERTIFICATE-----
+MIIFwjCCA6qgAwIBAgICEAAwDQYJKoZIhvcNAQELBQAwcDELMAkGA1UEBhMCUlUx
+PzA9BgNVBAoMNlRoZSBNaW5pc3RyeSBvZiBEaWdpdGFsIERldmVsb3BtZW50IGFu
+ZCBDb21tdW5pY2F0aW9uczEgMB4GA1UEAwwXUnVzc2lhbiBUcnVzdGVkIFJvb3Qg
+Q0EwHhcNMjIwMzAxMjEwNDE1WhcNMzIwMjI3MjEwNDE1WjBwMQswCQYDVQQGEwJS
+VTE/MD0GA1UECgw2VGhlIE1pbmlzdHJ5IG9mIERpZ2l0YWwgRGV2ZWxvcG1lbnQg
+YW5kIENvbW11bmljYXRpb25zMSAwHgYDVQQDDBdSdXNzaWFuIFRydXN0ZWQgUm9v
+dCBDQTCCAiIwDQYJKoZIhvcNAQEBBQADggIPADCCAgoCggIBAMfFOZ8pUAL3+r2n
+qqE0Zp52selXsKGFYoG0GM5bwz1bSFtCt+AZQMhkWQheI3poZAToYJu69pHLKS6Q
+XBiwBC1cvzYmUYKMYZC7jE5YhEU2bSL0mX7NaMxMDmH2/NwuOVRj8OImVa5s1F4U
+zn4Kv3PFlDBjjSjXKVY9kmjUBsXQrIHeaqmUIsPIlNWUnimXS0I0abExqkbdrXbX
+YwCOXhOO2pDUx3ckmJlCMUGacUTnylyQW2VsJIyIGA8V0xzdaeUXg0VZ6ZmNUr5Y
+Ber/EAOLPb8NYpsAhJe2mXjMB/J9HNsoFMBFJ0lLOT/+dQvjbdRZoOT8eqJpWnVD
+U+QL/qEZnz57N88OWM3rabJkRNdU/Z7x5SFIM9FrqtN8xewsiBWBI0K6XFuOBOTD
+4V08o4TzJ8+Ccq5XlCUW2L48pZNCYuBDfBh7FxkB7qDgGDiaftEkZZfApRg2E+M9
+G8wkNKTPLDc4wH0FDTijhgxR3Y4PiS1HL2Zhw7bD3CbslmEGgfnnZojNkJtcLeBH
+BLa52/dSwNU4WWLubaYSiAmA9IUMX1/RpfpxOxd4Ykmhz97oFbUaDJFipIggx5sX
+ePAlkTdWnv+RWBxlJwMQ25oEHmRguNYf4Zr/Rxr9cS93Y+mdXIZaBEE0KS2iLRqa
+OiWBki9IMQU4phqPOBAaG7A+eP8PAgMBAAGjZjBkMB0GA1UdDgQWBBTh0YHlzlpf
+BKrS6badZrHF+qwshzAfBgNVHSMEGDAWgBTh0YHlzlpfBKrS6badZrHF+qwshzAS
+BgNVHRMBAf8ECDAGAQH/AgEEMA4GA1UdDwEB/wQEAwIBhjANBgkqhkiG9w0BAQsF
+AAOCAgEAALIY1wkilt/urfEVM5vKzr6utOeDWCUczmWX/RX4ljpRdgF+5fAIS4vH
+tmXkqpSCOVeWUrJV9QvZn6L227ZwuE15cWi8DCDal3Ue90WgAJJZMfTshN4OI8cq
+W9E4EG9wglbEtMnObHlms8F3CHmrw3k6KmUkWGoa+/ENmcVl68u/cMRl1JbW2bM+
+/3A+SAg2c6iPDlehczKx2oa95QW0SkPPWGuNA/CE8CpyANIhu9XFrj3RQ3EqeRcS
+AQQod1RNuHpfETLU/A2gMmvn/w/sx7TB3W5BPs6rprOA37tutPq9u6FTZOcG1Oqj
+C/B7yTqgI7rbyvox7DEXoX7rIiEqyNNUguTk/u3SZ4VXE2kmxdmSh3TQvybfbnXV
+4JbCZVaqiZraqc7oZMnRoWrXRG3ztbnbes/9qhRGI7PqXqeKJBztxRTEVj8ONs1d
+WN5szTwaPIvhkhO3CO5ErU2rVdUr89wKpNXbBODFKRtgxUT70YpmJ46VVaqdAhOZ
+D9EUUn4YaeLaS8AjSF/h7UkjOibNc4qVDiPP+rkehFWM66PVnP1Msh93tc+taIfC
+EYVMxjh8zNbFuoc7fzvvrFILLe7ifvEIUqSVIC/AzplM/Jxw7buXFeGP1qVCBEHq
+391d/9RAfaZ12zkwFsl+IKwE/OZxW8AHa9i1p4GO0YSNuczzEm4=
+-----END CERTIFICATE-----`;
+
+let alfaHttpClient: Deno.HttpClient | undefined;
+function getAlfaHttpClient() {
+  if (!alfaHttpClient) alfaHttpClient = Deno.createHttpClient({ caCerts: [RUSSIAN_TRUSTED_ROOT_CA] });
+  return alfaHttpClient;
+}
+
+async function fetchAlfa(url: string, opts: RequestInit = {}, timeoutMs = 15000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal, client: getAlfaHttpClient() });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// fetch с таймаутом: без этого зависший внешний хост (напр. IP-фильтр на стороне
+// PayKeeper) вешает функцию на весь платформенный лимит вместо понятной ошибки.
+async function fetchT(url, opts = {}, timeoutMs = 10000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e?.name === 'AbortError') throw new Error(`Timeout after ${timeoutMs}ms: ${url}`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// Шим: даём коду обращаться к process.env.* как раньше
+const process = { env: new Proxy({}, { get: (_t, k) => Deno.env.get(String(k)) }) };
+
+async function handler(event) {
   // --------- базовые штуки
   const method = (
     event.httpMethod || event.requestContext?.http?.method || event.method || 'POST'  // <= дефолт POST
@@ -19,7 +103,7 @@ exports.handler = async (event) => {
   // Логируем только ошибки и успешные отправки
 
   // ВРЕМЕННО: echo env и кандидатов
-  if ((event.httpMethod||'').toUpperCase() === 'GET' && (event.queryStringParameters||{}).debug === '1') {
+  if (false) { // debug-эндпоинт отключён: раньше отдавал HOOK_SECRET в hex/base64 публично
     const H  = event.headers || {};
     const qs = event.queryStringParameters || {};
     const { data = {} } = await readBodyAny(event);
@@ -104,6 +188,10 @@ exports.handler = async (event) => {
       if (action === 'send-notification' || action === 'send') {
         return await routeSendNotification({ ...event, __data: data }, headers);
       }
+
+      if (action === 'poll-payments') {
+        return await routePollPayments(event, headers);
+      }
       
       if (isHook || !isPayIntent) {
         // Это хук - уведомление о платеже, отправляем в Telegram
@@ -181,9 +269,64 @@ async function routeHook(event, headers){
     return await handleTelegramCallback(data.callback_query, headers);
   }
 
-  // Данные от PayKeeper (логируем только при необходимости)
+  const callbackData = { ...qs, ...data };
+  const isAlfaCallback = Boolean(
+    callbackData.mdOrder || callbackData.orderNumber || callbackData.operation
+  );
 
-  const p = normPaymentPayload(data);
+  let p;
+  if (isAlfaCallback) {
+    const operation = String(callbackData.operation || '').toLowerCase();
+    const callbackStatus = String(callbackData.status || '');
+    const mdOrder = String(callbackData.mdOrder || '').trim();
+
+    const successfulOperation = ['approved', 'deposited'].includes(operation);
+    if (!successfulOperation || callbackStatus !== '1' || !mdOrder) {
+      return resp(200, {
+        ok: true,
+        received: true,
+        paid: false,
+        reason: 'Alfa callback is not a successful deposit'
+      }, headers);
+    }
+
+    const alfaOrder = await getAlfaOrderStatus(mdOrder);
+    const deposited =
+      Number(alfaOrder?.orderStatus) === 2 ||
+      String(alfaOrder?.paymentState || '').toUpperCase() === 'DEPOSITED';
+
+    if (!deposited) {
+      return resp(200, {
+        ok: true,
+        received: true,
+        paid: false,
+        reason: 'Payment is not deposited according to Alfa API'
+      }, headers);
+    }
+
+    const amountKopecks = Number(
+      alfaOrder?.paymentAmountInfo?.depositedAmount ??
+      alfaOrder?.paymentAmountInfo?.paymentAmount ??
+      alfaOrder?.amount ?? 0
+    );
+    const description = String(
+      alfaOrder?.orderDescription || callbackData.description || ''
+    );
+
+    p = normPaymentPayload({
+      ...callbackData,
+      ...getAlfaCustomerDetails(alfaOrder),
+      paid: true,
+      status: 'paid',
+      invoice_id: mdOrder,
+      orderId: alfaOrder?.orderNumber || callbackData.orderNumber || '',
+      amount: amountKopecks / 100,
+      description,
+      service_name: description
+    });
+  } else {
+    p = normPaymentPayload(data);
+  }
   
   // ВАЖНО: Проверяем возраст заказа ДО автоматической проверки через API
   // Если заказ старше 10 минут, не обрабатываем его (даже если он оплачен)
@@ -224,7 +367,7 @@ async function routeHook(event, headers){
           const auth = 'Basic ' + Buffer.from(`${pkUser}:${pkPass}`).toString('base64');
           const apiUrl = `${base}/info/invoice/byid/?id=${encodeURIComponent(p.invoice_id)}`;
           
-          const res = await fetch(apiUrl, {
+          const res = await fetchT(apiUrl, {
             headers: {
               'Authorization': auth,
               'Content-Type': 'application/json'
@@ -325,6 +468,7 @@ async function routeHook(event, headers){
     
     const msg = buildMsg(p);
     await tgBroadcast(msg, p.invoice_id);
+    await markPaymentNotified(p.invoice_id);
     console.log('✅ Telegram sent', { invoice_id: p.invoice_id, orderId: p.orderId });
     return resp(200, { ok:true, notified:true, orderId: p.orderId, invoice_id: p.invoice_id }, headers);
   } catch (tgError) {
@@ -373,7 +517,7 @@ async function routeCheckPayment(data, headers){
     
     // Проверяем статус через API PayKeeper
     
-    const res = await fetch(apiUrl, {
+    const res = await fetchT(apiUrl, {
       headers: {
         'Authorization': auth,
         'Content-Type': 'application/json'
@@ -533,7 +677,7 @@ async function routeSendNotification(event, headers){
     notificationCache.set(cacheKey, Date.now());
     
     const msg = buildMsg(p);
-    await tgBroadcast(msg, p.invoice_id);
+      await tgBroadcast(msg, p.invoice_id);
     
     // Уведомление отправлено вручную
     
@@ -548,6 +692,142 @@ async function routeSendNotification(event, headers){
     console.error('Send notification error', error);
     return resp(500, { error: 'Internal error', detail: String(error) }, headers);
   }
+}
+
+async function getAlfaOrderStatus(mdOrder){
+  const alfaBase = String(process.env.ALFA_API_BASE || 'https://payment.alfabank.ru/payment/rest').replace(/\/$/, '');
+  const alfaUser = process.env.ALFA_API_USER || '';
+  const alfaPass = process.env.ALFA_API_PASS || '';
+
+  if (!alfaUser || !alfaPass) {
+    throw new Error('Alfa-Bank credentials not configured');
+  }
+
+  const form = new URLSearchParams({
+    userName: alfaUser,
+    password: alfaPass,
+    orderId: mdOrder
+  });
+  const res = await fetchAlfa(`${alfaBase}/getOrderStatusExtended.do`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: form
+  });
+  const body = await res.json().catch(() => null);
+
+  const errorCode = String(body?.errorCode ?? '0');
+  if (!res.ok || !body || (errorCode !== '0' && errorCode !== '')) {
+    throw new Error(body?.errorMessage || `Alfa status API returned HTTP ${res.status}`);
+  }
+  return body;
+}
+
+function getAlfaCustomerDetails(order) {
+  const arrays = [order?.merchantOrderParams, order?.attributes, order?.transactionAttributes]
+    .filter(Array.isArray);
+  const param = (...names) => {
+    const wanted = names.map(name => String(name).toLowerCase());
+    for (const list of arrays) {
+      const found = list.find(item => wanted.includes(String(item?.name || item?.key || '').toLowerCase()));
+      const value = found?.value ?? found?.val;
+      if (value != null && String(value).trim()) return String(value).trim();
+    }
+    return '';
+  };
+  const first = (...values) => String(values.find(value => value != null && String(value).trim()) || '').trim();
+  return {
+    clientid: first(order?.clientId, order?.clientInfo?.clientId, param('clientId', 'client_id', 'fio', 'name')),
+    client_email: first(order?.email, order?.clientEmail, order?.clientInfo?.email, order?.orderBundle?.customerDetails?.email, param('email', 'client_email')),
+    client_phone: first(order?.phone, order?.clientPhone, order?.clientInfo?.phone, order?.orderBundle?.customerDetails?.phone, param('phone', 'client_phone'))
+  };
+}
+
+async function supabaseAdminRequest(path, options = {}) {
+  const base = String(process.env.SUPABASE_URL || '').replace(/\/$/, '');
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+  if (!base || !serviceKey) throw new Error('Supabase service role is not configured');
+
+  return await fetchT(`${base}/rest/v1/${path}`, {
+    ...options,
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {})
+    }
+  });
+}
+
+async function savePaymentOrder(order) {
+  const res = await supabaseAdminRequest('payment_orders?on_conflict=md_order', {
+    method: 'POST',
+    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+    body: JSON.stringify(order)
+  });
+  if (!res.ok) throw new Error(`Cannot save payment order: ${await res.text()}`);
+}
+
+async function markPaymentNotified(mdOrder) {
+  if (!mdOrder) return;
+  const res = await supabaseAdminRequest(`payment_orders?md_order=eq.${encodeURIComponent(mdOrder)}`, {
+    method: 'PATCH',
+    headers: { Prefer: 'return=minimal' },
+    body: JSON.stringify({ status: 'paid', notified_at: new Date().toISOString(), last_error: null })
+  });
+  if (!res.ok) console.error('Cannot mark payment notified', await res.text());
+}
+
+async function routePollPayments(event, headers) {
+  const pollToken = String(event.headers?.['x-poll-token'] || event.headers?.['X-Poll-Token'] || '');
+  const expectedToken = process.env.ALFA_CALLBACK_TOKEN || '';
+  if (!expectedToken || pollToken !== expectedToken) {
+    return resp(401, { ok: false, error: 'Unauthorized' }, headers);
+  }
+
+  const select = 'md_order,order_number,amount,description,created_at';
+  const query = `payment_orders?select=${select}&notified_at=is.null&created_at=gte.${encodeURIComponent(new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())}&order=created_at.asc&limit=50`;
+  const pendingRes = await supabaseAdminRequest(query);
+  if (!pendingRes.ok) throw new Error(`Cannot load pending payments: ${await pendingRes.text()}`);
+  const pending = await pendingRes.json();
+  let notified = 0;
+
+  for (const order of pending) {
+    try {
+      const alfaOrder = await getAlfaOrderStatus(order.md_order);
+      const deposited = Number(alfaOrder?.orderStatus) === 2 ||
+        String(alfaOrder?.paymentState || '').toUpperCase() === 'DEPOSITED';
+      if (!deposited) continue;
+
+      const amountKopecks = Number(
+        alfaOrder?.paymentAmountInfo?.depositedAmount ??
+        alfaOrder?.paymentAmountInfo?.paymentAmount ??
+        Math.round(Number(order.amount || 0) * 100)
+      );
+      const description = String(alfaOrder?.orderDescription || order.description || 'Оплата заказа');
+      const p = normPaymentPayload({
+        ...getAlfaCustomerDetails(alfaOrder),
+        paid: true,
+        status: 'paid',
+        invoice_id: order.md_order,
+        orderId: alfaOrder?.orderNumber || order.order_number,
+        amount: amountKopecks / 100,
+        description,
+        service_name: description
+      });
+      await tgBroadcast(buildMsg(p), p.invoice_id);
+      await markPaymentNotified(order.md_order);
+      notified += 1;
+    } catch (error) {
+      console.error('Payment polling failed', { mdOrder: order.md_order, error: String(error) });
+      await supabaseAdminRequest(`payment_orders?md_order=eq.${encodeURIComponent(order.md_order)}`, {
+        method: 'PATCH',
+        headers: { Prefer: 'return=minimal' },
+        body: JSON.stringify({ last_checked_at: new Date().toISOString(), last_error: String(error).slice(0, 500) })
+      }).catch(() => null);
+    }
+  }
+
+  return resp(200, { ok: true, checked: pending.length, notified }, headers);
 }
 
 async function routePay(data, headers){
@@ -568,13 +848,12 @@ async function routePay(data, headers){
     return resp(400, { error: 'Invalid amount', message: 'Сумма должна быть больше нуля' }, headers);
   }
 
-  // Интеграция с PayKeeper
-  const pkHost = process.env.PK_HOST || '';
-  const pkUser = process.env.PK_USER || '';
-  const pkPass = process.env.PK_PASS || '';
+  const alfaBase = String(process.env.ALFA_API_BASE || 'https://payment.alfabank.ru/payment/rest').replace(/\/$/, '');
+  const alfaUser = process.env.ALFA_API_USER || '';
+  const alfaPass = process.env.ALFA_API_PASS || '';
 
-  if (!pkHost || !pkUser || !pkPass) {
-    console.error('PayKeeper credentials not configured');
+  if (!alfaUser || !alfaPass) {
+    console.error('Alfa-Bank credentials not configured');
     return resp(500, { 
       error: 'Payment gateway not configured', 
       message: 'Платежный шлюз не настроен' 
@@ -582,102 +861,68 @@ async function routePay(data, headers){
   }
 
   try {
-    // Используем старую логику: сначала получаем токен, потом создаем счет
-    const base = `https://${pkHost}`;
-    const auth = 'Basic ' + Buffer.from(`${pkUser}:${pkPass}`).toString('base64');
-    const common = { 
-      headers: { 
-        'Authorization': auth, 
-        'Content-Type': 'application/x-www-form-urlencoded' 
-      } 
-    };
-    
-    // 1) Получаем токен
-    const tRes = await fetch(base + '/info/settings/token/', { headers: common.headers });
-    let tJson = null;
-    try {
-      tJson = await tRes.json();
-    } catch (e) {
-      const tText = await tRes.text().catch(() => '');
-      console.error('Token response parse error', { status: tRes.status, body: tText.substring(0, 200) });
-    }
-    
-    if (!tRes.ok || !tJson?.token) {
-      const tText = await tRes.text().catch(() => '');
-      console.error('Token request failed', { 
-        status: tRes.status, 
-        body: tText.substring(0, 200),
-        json: tJson 
-      });
-      return resp(502, { 
-        error: 'Token request failed', 
-        status: tRes.status, 
-        body: tText.substring(0, 200) 
-      }, headers);
-    }
-    
-    // 2) Создаем счет с токеном
-    // ВАЖНО: PayKeeper может требовать success_url и fail_url для редиректа после оплаты
+    const amountKopecks = Math.round(amount * 100);
     const form = new URLSearchParams({
-      pay_amount: String(amount.toFixed(2)),
-      clientid: clientId || email || phone || 'Клиент',
-      orderid: orderId,
-      client_email: email || '',
-      client_phone: phone || '',
-      service_name: description,
-      token: tJson.token,
-      // Добавляем success_url и fail_url для редиректа после оплаты
-      success_url: successUrl,
-      fail_url: failUrl
+      userName: alfaUser,
+      password: alfaPass,
+      orderNumber: orderId.slice(0, 32),
+      amount: String(amountKopecks),
+      returnUrl: successUrl,
+      failUrl: failUrl,
+      description: description.slice(0, 512),
+      language: 'ru',
+      clientId: clientId || email || phone || 'lady-elka'
     });
-    
-    // Создаем счет в PayKeeper
-    
-    const iRes = await fetch(base + '/change/invoice/preview/', { 
+
+    const alfaRes = await fetchAlfa(`${alfaBase}/register.do`, {
       method: 'POST', 
-      ...common, 
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: form 
     });
-    
-    let iJson = null;
-    try {
-      iJson = await iRes.json();
-    } catch (e) {
-      const iText = await iRes.text().catch(() => '');
-      console.error('Invoice response parse error', { status: iRes.status, body: iText.substring(0, 200) });
-    }
-    
-    if (!iRes.ok || !iJson?.invoice_id) {
-      const iText = await iRes.text().catch(() => '');
-      console.error('Invoice create failed', { 
-        status: iRes.status, 
-        body: iText.substring(0, 200),
-        json: iJson 
+    const alfaText = await alfaRes.text();
+    let alfaJson;
+    try { alfaJson = JSON.parse(alfaText); }
+    catch { alfaJson = null; }
+
+    if (!alfaRes.ok || !alfaJson?.formUrl) {
+      console.error('Alfa-Bank order registration failed', {
+        status: alfaRes.status,
+        errorCode: alfaJson?.errorCode,
+        errorMessage: alfaJson?.errorMessage
       });
-      return resp(502, { 
-        error: 'Invoice create failed', 
-        status: iRes.status, 
-        body: iText.substring(0, 200) 
+      return resp(502, {
+        error: 'Payment registration failed',
+        errorCode: alfaJson?.errorCode || '',
+        message: alfaJson?.errorMessage || 'Альфа-Банк не создал платёж'
       }, headers);
     }
-    
-    const paymentUrl = `${base}/bill/${iJson.invoice_id}/`;
-    
-    // Счет создан успешно
 
-    // ВАЖНО: возвращаем JSON с URL на оплату от PayKeeper!
+    try {
+      await savePaymentOrder({
+        md_order: alfaJson.orderId,
+        order_number: orderId.slice(0, 32),
+        amount,
+        description: description.slice(0, 512),
+        status: 'pending'
+      });
+    } catch (storeError) {
+      console.error('Payment order persistence failed', String(storeError));
+    }
+
     return resp(200, {
-      url: paymentUrl,
+      url: alfaJson.formUrl,
+      paymentId: alfaJson.orderId,
       orderId: orderId,
       amount: amount,
       description: description
     }, headers);
 
   } catch (error) {
-    console.error('PayKeeper integration error', error);
+    console.error('Alfa-Bank integration error', error);
+    const errorMessage = error instanceof Error ? error.message : String(error);
     return resp(500, { 
       error: 'Payment creation failed', 
-      message: 'Не удалось создать платеж: ' + String(error.message || error),
+      message: 'Не удалось создать платеж: ' + errorMessage,
       detail: String(error)
     }, headers);
   }
@@ -730,7 +975,7 @@ async function safeJson(res){ try { return await res.json(); } catch { return nu
 async function safeText(res){ try { return await res.text(); } catch { return null; } }
 
 async function handleTelegramCallback(callback, headers){
-  const token = (process.env.TG_BOT_TOKEN || '').trim();
+  const token = (Deno.env.get('TG_BOT_TOKEN') || '').trim();
   if (!token || !callback?.id) {
     return resp(400, { ok:false, error:'Invalid callback' }, headers);
   }
@@ -756,7 +1001,7 @@ async function handleTelegramCallback(callback, headers){
     ? 'Выберите статус заказа'
     : selectedStatus?.notice || 'Текущий статус заказа';
 
-  await fetch(`${api}/answerCallbackQuery`, {
+  await fetchT(`${api}/answerCallbackQuery`, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({
@@ -766,7 +1011,7 @@ async function handleTelegramCallback(callback, headers){
   }).catch(() => null);
 
   if (nextMarkup && callback.message) {
-    await fetch(`${api}/editMessageReplyMarkup`, {
+    await fetchT(`${api}/editMessageReplyMarkup`, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({
@@ -784,7 +1029,7 @@ function fmtRub(n){ return (Number(n)||0).toLocaleString('ru-RU')+' ₽'; }
 
 // Телега
 function alfaTransactionUrl(transactionId){
-  const base = String(process.env.ALFA_DASHBOARD_URL || 'https://payment.alfabank.ru/generalmp3/admin/transactions').trim().replace(/\/+$/, '');
+  const base = String(Deno.env.get('ALFA_DASHBOARD_URL') || 'https://payment.alfabank.ru/generalmp3/admin/transactions').trim().replace(/\/+$/, '');
   const id = String(transactionId || '').trim();
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)
     ? `${base}/${encodeURIComponent(id)}`
@@ -825,7 +1070,7 @@ async function tgBroadcast(text, transactionId = ''){
   
   if (!token || !ids.length) { 
     console.warn('TG not configured', { hasToken: !!token, idsCount: ids.length }); 
-    return; 
+    throw new Error('Telegram is not configured');
   }
 
   const sendAsPhoto = Boolean(photoUrl) && String(text).length <= 1024;
@@ -869,11 +1114,13 @@ async function tgBroadcast(text, transactionId = ''){
         if (responseStatus === 400) {
           console.error('TG 400 error - возможно проблема с HTML тегами в сообщении:', text.substring(0, 200));
         }
+        throw new Error(j?.description || `Telegram API returned HTTP ${res.status}`);
       } else {
         console.log('✅ TG message sent successfully', { chatId, messageId: j?.result?.message_id });
       }
     } catch (e){
       console.error('TG send exception', {id, error:String(e), stack: e.stack});
+      throw e;
     }
   }));
 }
@@ -1216,3 +1463,50 @@ function formatOrderDate(orderId){
   if (dateText === todayText) return '';
   return `Заказ был оформлен ${dateText}`;
 }
+
+// ======================== Deno / Supabase рантайм-обёртка ========================
+// Превращает входящий Request в event-объект формата YandexCloud (httpMethod, path,
+// headers, queryStringParameters, body), вызывает handler и мапит ответ в Response.
+Deno.serve(async (req) => {
+  const url = new URL(req.url);
+
+  // заголовки → плоский объект с ключами в нижнем регистре (код читает и lower, и Capitalized —
+  // lower-варианта достаточно, т.к. Headers и так регистронезависимы)
+  const headersObj = {};
+  for (const [k, v] of req.headers.entries()) headersObj[k.toLowerCase()] = v;
+
+  // query-параметры → объект
+  const qs = {};
+  for (const [k, v] of url.searchParams.entries()) qs[k] = v;
+
+  // тело как строка (для GET/HEAD/OPTIONS — пусто)
+  let body = '';
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    try { body = await req.text(); } catch { body = ''; }
+  }
+
+  const event = {
+    httpMethod: req.method,
+    path: url.pathname,
+    headers: headersObj,
+    queryStringParameters: qs,
+    body,
+    isBase64Encoded: false,
+  };
+
+  let out;
+  try {
+    out = await handler(event);
+  } catch (e) {
+    console.error('Handler crashed', e);
+    out = { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Internal Error' }) };
+  }
+
+  // 204/304 не могут иметь тело — иначе конструктор Response бросает исключение (→ 500 на preflight)
+  const status = out.statusCode ?? 200;
+  const nullBody = status === 204 || status === 304 || status === 101;
+  return new Response(nullBody ? null : (out.body ?? ''), {
+    status,
+    headers: out.headers ?? {},
+  });
+});

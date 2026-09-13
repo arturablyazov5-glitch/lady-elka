@@ -1,0 +1,7 @@
+# Supabase config. project_id подставится после `supabase link` (или впиши PROJECT_REF вручную).
+project_id = "lady-elka"
+
+# Функция оплаты/вебхука должна быть публичной: PayKeeper и фронт Taptop
+# не присылают Supabase JWT, поэтому проверку авторизации отключаем.
+[functions.pay]
+verify_jwt = false

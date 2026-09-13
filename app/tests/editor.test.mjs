@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import {pricedProduct,DEFAULT_SETTINGS,calculatePrice} from '../public/js/pricing.js';
+import {importCSV,exportCSV} from '../server/catalog.mjs';
+import {getGroups,groupVariants,sharedContent,setContent,checkDraft,parsePhotoLinks,parsePriceInput,formatPriceInput,parseUnitInput,formatUnitInput,parseCountInput,formatCountInput} from '../public/js/editor-model.js';
+const source=pricedProduct(importCSV(fs.readFileSync(new URL('../data/source-trees.csv',import.meta.url),'utf8'),'trees').products[0],DEFAULT_SETTINGS);
+test('grouping shows four configurations and never alters existing feed data',()=>{const p=structuredClone(source),before=exportCSV([p],'trees');assert.equal(getGroups(p).length,4);assert.deepEqual(getGroups(p).map(g=>groupVariants(p,g).length),[5,5,4,4]);assert.equal(exportCSV([p],'trees'),before);});
+test('shared content edit applies only to sizes of the selected configuration',()=>{const p=structuredClone(source),vs=groupVariants(p,'Зелёная'),outside=p.variants.filter(v=>v.category!=='Зелёная').map(v=>structuredClone(v));assert.ok(sharedContent(vs));setContent(vs,'description','Новое описание');setContent(vs,'photos',['https://example.com/photo.jpg']);assert.ok(vs.every(v=>v.description==='Новое описание'&&v.photos.length===1));assert.deepEqual(p.variants.filter(v=>v.category!=='Зелёная'),outside);assert.notEqual(vs[0].photos,vs[1].photos);});
+test('different per-size content is detected instead of silently overwritten',()=>{const p=structuredClone(source),vs=groupVariants(p,'Зелёная');vs[1].description='Другое описание';assert.equal(sharedContent(vs),false);setContent([vs[1]],'description','Правка только размера');assert.equal(vs[0].description,source.variants[0].description);});
+test('global discount and adjustment calculate prices from the stable base',()=>{assert.deepEqual(calculatePrice(10000,{discount_pct:30,adjustment_pct:10}),{price:11000,offer:15715,discount_pct:-30});});
+test('validation identifies the exact row including outside the active configuration',()=>{const p=structuredClone(source);p.variants[10].base_price=0;assert.deepEqual(checkDraft(p),{message:'Укажите базовую цену больше нуля',key:p.variants[10].key,field:'base_price'});});
+test('photo links accept multiple URLs and reject unsafe or partial links',()=>{assert.deepEqual(parsePhotoLinks('https://example.com/a.jpg\nhttps://example.com/a.jpg | https://example.com/b.jpg'),['https://example.com/a.jpg','https://example.com/b.jpg']);assert.throws(()=>parsePhotoLinks('javascript:alert(1)'));assert.throws(()=>parsePhotoLinks('example.com/photo.jpg'));});
+test('price mask parses input and formats only the unfocused value',()=>{assert.equal(parsePriceInput('35 000 ₽'),35000);assert.equal(parsePriceInput('12,5'),12.5);assert.equal(formatPriceInput(35000),'35 000 ₽');assert.equal(formatPriceInput(0),'');});
+test('centimeter mask formats dimensions without a currency symbol',()=>{assert.equal(parseUnitInput('185 см'),185);assert.equal(formatUnitInput(185),'185 см');assert.equal(formatUnitInput(0),'');});
+test('branch count mask formats units without decimals',()=>{assert.equal(parseCountInput('1 234 шт'),1234);assert.equal(formatCountInput(1234),'1 234 шт');assert.equal(formatCountInput(0),'');});

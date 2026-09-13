@@ -1,0 +1,17 @@
+{
+  "imported_at": "2026-09-12T12:50:13.796Z",
+  "sources": [
+    {
+      "kind": "trees",
+      "products": 35,
+      "variants": 236,
+      "skipped": 147
+    },
+    {
+      "kind": "decor",
+      "products": 5,
+      "variants": 6,
+      "skipped": 5
+    }
+  ]
+}

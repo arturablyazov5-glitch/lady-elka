@@ -1,0 +1,481 @@
+/* Originates from ПочинимВсе!/avito-ads-generator/public/css/styles.css (89 КБ),
+   trimmed here to the rules Lady Elka's markup actually matches — see
+   app/README.md, "Дизайн". Not an unchanged copy; re-diff against the
+   source project by hand if it gets updated there. */
+:root {
+  --bg: #f5f5f7;
+  --surface: #ffffff;
+  --soft: #f1f1f4;
+  --soft-2: #ebebef;
+  --line: #e8e8ed;
+  --text: #1d1d1f;
+  --muted: #707070;
+  --blue: #0071e3;
+  --blue-hover: #0077ed;
+  --danger: #ff6b6f;
+  --danger-soft: #fff1f1;
+  --success: #34c759;
+  --warn: #d97706;
+  --accent-text: #b64400;
+  --brace-1: #0071e3;
+  --brace-2: #7c3aed;
+  --brace-3: #059669;
+  --brace-4: #b64400;
+  --zone-bg: #ecfeff;
+  --zone-text: #0e7490;
+  --motion-fast: 150ms;
+  --motion-standard: 200ms;
+  --motion-ease: cubic-bezier(0.2, 0, 0, 1);
+  --space-1: 2px;
+  --space-2: 4px;
+  --space-3: 6px;
+  --space-4: 8px;
+  --space-5: 10px;
+  --space-6: 12px;
+  --space-8: 16px;
+  --space-10: 20px;
+  --space-12: 24px;
+  --font-xs: 12px;
+  --font-sm: 14px;
+  --font-page: 20px;
+  --line-sm: 20px;
+  --line-page: 28px;
+  --radius-card: 28px;
+  --radius-control: 12px;
+  --radius-pill: 999px;
+}
+* { box-sizing: border-box; }
+html {
+  background: var(--bg);
+}
+body {
+  margin: 0;
+  min-width: 320px;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", Inter, system-ui, "Segoe UI", Roboto, sans-serif;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button {
+  cursor: pointer;
+}
+.neo-shell {
+  min-height: 100vh;
+}
+.neo-top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 1px solid #e8e8ed;
+  background: #fff;
+}
+.neo-header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 64rem;
+  height: 3.5rem;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+.top-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.top-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 0;
+  padding: 0.5rem 0.75rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+}
+.top-tab.active {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+.dashboard-shell {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 1.5rem;
+  width: min(64rem, calc(100% - 2rem));
+  margin: 2rem auto 3rem;
+}
+.dashboard-shell { position: relative; }
+.sidebar {
+  position: sticky;
+  top: 89px;
+  align-self: start;
+  padding: 0.75rem;
+  border-radius: 28px;
+  background: var(--surface);
+  transition: box-shadow var(--motion-standard) var(--motion-ease);
+}
+.neo-account {
+  margin-bottom: 0.75rem;
+  padding: 0 0.75rem 0.75rem;
+  border-bottom: 1px solid #e8e8ed;
+}
+.brand-name,
+.brand-caption {
+  margin: 0;
+}
+.brand-name {
+  overflow: hidden;
+  color: #1d1d1f;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.brand-caption {
+  margin-top: 0.125rem;
+  color: #707070;
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.sidebar-divider {
+  height: 1px;
+  margin: 0.75rem 0 0;
+  background: #e8e8ed;
+}
+.side-tabs {
+  display: grid;
+  gap: 0.125rem;
+}
+.side-tabs a {
+  text-decoration: none;
+}
+.tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  width: 100%;
+  min-height: 0;
+  padding: 0.625rem 0.75rem;
+  border: 0;
+  border-radius: 0.75rem;
+  background: transparent;
+  color: #707070;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 500;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.tab-btn[aria-current="page"] {
+  background: var(--soft);
+  color: var(--text);
+  font-weight: 600;
+}
+.tab-btn:hover:not(.active) {
+  background: #f5f5f7;
+  color: #1d1d1f;
+}
+.project-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-6);
+  margin-top: var(--space-8);
+}
+.workspace {
+  min-width: 0;
+}
+main {
+  max-width: 820px;
+}
+.subtitle,
+.checkout-heading p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.25rem;
+  font-weight: 400;
+}
+.app-view,
+.tab-panel {
+  display: none;
+}
+.app-view.active,
+.tab-panel.active {
+  display: block;
+  animation: neoFade var(--motion-standard) var(--motion-ease);
+}
+@keyframes neoFade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.tab-panel {
+  padding: 20px;
+  border-radius: 28px;
+  background: var(--surface);
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.panel-header h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+.service-name,
+.service-price,
+.service-avito-category,
+#ads-per-district-input,
+textarea {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+.service-name,
+.service-price,
+.service-avito-category,
+#ads-per-district-input,
+textarea {
+  transition: border-color var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease), background var(--motion-fast) var(--motion-ease);
+}
+.select-control {
+  position: relative;
+  min-width: 180px;
+  flex: 1 1 260px;
+}
+textarea {
+  width: 100%;
+  padding: 12px 14px;
+  line-height: 1.5;
+  resize: none;
+  overflow: hidden;
+}
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.12);
+}
+.icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--soft);
+  color: var(--muted);
+  flex-shrink: 0;
+  transition: background var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), transform var(--motion-fast) var(--motion-ease);
+}
+.icon-btn:hover {
+  color: var(--text);
+  transform: translateY(-1px);
+}
+.icon-btn.danger:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+.icon-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, opacity 0.15s ease;
+}
+.btn.secondary {
+  background: var(--soft);
+  color: var(--text);
+}
+.btn.primary {
+  background: var(--blue);
+  color: #fff;
+}
+.btn.primary:hover {
+  background: var(--blue-hover);
+}
+.btn:active,
+.tab-btn:active,
+.top-tab:active {
+  transform: scale(0.98);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+.icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+@media (max-width: 800px) {
+.dashboard-shell {
+    grid-template-columns: 1fr;
+    width: min(760px, calc(100% - 32px));
+  }
+.sidebar {
+    position: static;
+  }
+.side-tabs {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+.tab-btn {
+    justify-content: center;
+    text-align: center;
+  }
+main {
+    max-width: none;
+  }
+}
+@media (max-width: 760px) {
+body {
+    padding-bottom: 76px;
+  }
+.neo-header-inner {
+    height: 3.5rem;
+    padding: 0 0.75rem;
+    gap: 0.5rem;
+  }
+.top-tabs {
+    margin-left: auto;
+    gap: 0.25rem;
+  }
+.top-tab {
+    padding: 0.5rem 0.625rem;
+    white-space: nowrap;
+  }
+.top-tabs {
+    gap: 0.25rem;
+  }
+.top-tab {
+    min-height: 0;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+  }
+.dashboard-shell {
+    width: calc(100% - 24px);
+    gap: 18px;
+    margin-top: 22px;
+  }
+.sidebar {
+    position: fixed;
+    top: auto !important;
+    right: 0;
+    bottom: 0 !important;
+    left: 0;
+    z-index: 35;
+    display: block;
+    padding: 0.35rem 0.5rem calc(0.35rem + env(safe-area-inset-bottom));
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -8px 24px rgba(29, 29, 31, 0.08);
+  }
+.neo-account,
+  .sidebar-divider,
+  .sidebar-logout {
+    display: none;
+  }
+.side-tabs {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.15rem;
+  }
+.tab-btn {
+    justify-content: center;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-height: 3rem;
+    padding: 0.35rem 0.15rem;
+    font-size: 0.65rem;
+    line-height: 0.8rem;
+    text-align: center;
+  }
+.tab-btn .icon {
+    width: 18px;
+    height: 18px;
+  }
+.subtitle:not(.cabinet-heading .subtitle),
+  .checkout-heading p {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+.tab-panel {
+    padding: 20px;
+    border-radius: 28px;
+  }
+.panel-header h2,
+  .step-title h3 {
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+.select-control,
+  #ads-per-district-input {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+*,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+/* Contact Finder: плотный рабочий реестр внутри текущей Neo-оболочки. */
+.tab-panel.contact-finder-panel { padding: 0; border-radius: 0; background: transparent; }
+.contact-finder-panel [hidden] { display: none !important; }
+.contact-finder-heading { align-items: flex-end; margin-bottom: 18px; }
+.contact-finder-heading .subtitle { max-width: 760px; margin-top: 3px; }
+/* Переключатель режимов «По сайту / По домену» */
+.finder-mode-switch { display: inline-flex; gap: 4px; width: fit-content; margin-bottom: 18px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--soft); }
+.finder-mode-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 16px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: background var(--motion-fast), color var(--motion-fast); }
+.finder-mode-btn:hover { color: var(--text); }
+.finder-mode-btn.selected { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(15,15,20,.08); }
+@media (max-width: 920px) {
+.contact-finder-heading { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 640px) {
+.finder-mode-switch { width: 100%; }
+.finder-mode-btn { flex: 1; justify-content: center; }
+}

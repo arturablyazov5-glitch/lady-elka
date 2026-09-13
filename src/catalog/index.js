@@ -1,7 +1,7 @@
 // === Каталог Lady Elka — точка входа ===
 // Исходники разбиты на модули в src/catalog/. Сборка: npm run build -> dist/catalog.js
 import {
-  CARD_SEL, IMG_WRAP_SEL, EXTRA_IMG_WRAP_SEL,
+  CARD_SEL, IMG_WRAP_SEL, EXTRA_IMG_WRAP_SEL, PROMO_SHEET_CSV_URL,
 } from './config.js';
 import {
   $$, num, rub, norm, normCat, isThankUrl, hideCard,
@@ -15,6 +15,13 @@ const CAT_ORDER = CAT_LABELS.map(normCat);
 
 // Если для выбранной категории нет фото: true — не показываем ничего; false — показываем первое валидное
 const STRICT_PHOTO_BY_CAT = false;
+
+// Актуальные таблицы цен. Заполняются при загрузке страницы (initCards) и обновляются
+// в фоне при открытии корзины — чтобы сверка цен перед оплатой была мгновенной.
+// Важно: сверку нельзя делать через await прямо в обработчике клика — оплата на десктопе
+// открывается через window.open, и браузер заблокирует окно, если до него был сетевой запрос.
+let priceDict = null;
+let priceDecorDict = null;
 
 function updatePhotos(card, catKey){
   const want = normCat(catKey);
@@ -61,6 +68,7 @@ function updatePhotos(card, catKey){
       if(img){
         const src = img.getAttribute('data-origin-src') || img.getAttribute('data-src');
         if(src && !img.getAttribute('src')) img.setAttribute('src', src);
+        watchImageLoading(w, img);
         img.removeAttribute('hidden');
         img.style.setProperty('display','block','important');
         img.style.removeProperty('opacity');
@@ -161,6 +169,7 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
       img.removeAttribute('srcset');
       img.setAttribute('src', url);
       img.setAttribute('data-origin-src', url);
+      watchImageLoading(w, img);
       w.style.display = '';
     } else {
       w.style.display = 'none';
@@ -189,6 +198,30 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
 
 // === ВСПОМОГАТЕЛЬНОЕ для «псевдо-селектов»
 const setText = (el, txt) => { (el?.querySelector?.('.text-block-wrap-div')||el).textContent = txt; };
+
+function watchImageLoading(wrapper, img){
+  if (!wrapper || !img) return;
+  const finish = () => wrapper.classList.remove('le-image-skeleton');
+  const fail = () => {
+    img.setAttribute('hidden', '');
+    img.style.setProperty('display', 'none', 'important');
+    finish();
+  };
+  wrapper.classList.add('le-image-skeleton');
+  img.addEventListener('load', finish, { once: true });
+  img.addEventListener('error', fail, { once: true });
+  if (img.complete && img.naturalWidth > 0) finish();
+}
+
+// До ответа Google Sheets не показываем шаблонную/устаревшую цену из CMS.
+// Проходим по уже отрендеренным карточкам до первого await в initCards().
+function markPricesLoading(){
+  $$(CARD_SEL).forEach(card => {
+    card.querySelectorAll('[data-price-decor], .price').forEach(priceEl => {
+      setText(priceEl, 'Загрузка...');
+    });
+  });
+}
 
 function escapeHtml(s){
   return String(s||'').replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
@@ -373,12 +406,15 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
   const toId = s => String(s||'').trim().toLowerCase();
 
   let dict, decorDict;
-  try { 
-    dict = await loadDict(); 
+  markPricesLoading();
+  try {
+    dict = await loadDict();
+    priceDict = dict; // отдаём в модульный кэш — по нему сверяются цены корзины перед оплатой
     console.log('Таблица елок загружена, записей:', dict ? (dict.byId.size + dict.byTitle.size) : 0);
   } catch(e){ console.error('таблица не загрузилась', e); }
-  try { 
-    decorDict = await loadDecorDict(); 
+  try {
+    decorDict = await loadDecorDict();
+    priceDecorDict = decorDict;
     console.log('Таблица декора загружена, записей:', decorDict ? (decorDict.byId.size + decorDict.byTitle.size) : 0);
   } catch(e){ console.error('таблица декора не загрузилась', e); }
   
@@ -386,6 +422,15 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
     console.warn('Ни одна таблица не загрузилась');
     return;
   }
+
+  // Корзина могла пролежать в браузере с прошлых визитов со старыми ценами —
+  // чиним сразу, не дожидаясь открытия корзины.
+  try {
+    const savedCart = getCart();
+    if (savedCart.length && revalidateCartPrices(savedCart).changed){
+      console.log('Цены в сохранённой корзине обновлены до актуальных');
+    }
+  } catch(e){ console.warn('не удалось обновить цены сохранённой корзины', e); }
 
   $$(CARD_SEL).forEach(card=>{
     if(card.__inited) return; card.__inited = true;
@@ -870,6 +915,83 @@ function getItemId(item){
   return `${name}_${height}_${category}`;
 }
 
+function refreshPriceDicts(){
+  return Promise.all([
+    loadDict().then(d => { priceDict = d; }).catch(e => console.warn('не обновились цены ёлок', e)),
+    loadDecorDict().then(d => { priceDecorDict = d; }).catch(e => console.warn('не обновились цены декора', e))
+  ]);
+}
+
+// Обновляет цены уже лежащих в корзине товаров и перерисовывает корзину.
+// Нужно для «отлежавшихся» корзин: человек добавил товар давно, цена в таблице с тех пор
+// изменилась — он должен увидеть актуальную цену сразу при открытии корзины, а не при оплате.
+function syncCartPricesAndRender(){
+  return refreshPriceDicts().then(() => {
+    const cart = getCart();
+    if (!revalidateCartPrices(cart).changed) return false;
+    try {
+      popupCache.lastUpdate = 0;
+      itemElementsCache = new WeakMap();
+      fillPopup();
+      updateCartTotal();
+      if (typeof window.LE_Promo !== 'undefined' && window.LE_Promo.render) window.LE_Promo.render();
+    } catch(e){ console.warn('не удалось перерисовать корзину после обновления цен', e); }
+    return true;
+  });
+}
+
+// Сверяет цены товаров в корзине с таблицей перед оплатой.
+// Цена в корзине — это снимок на момент добавления товара (addToCart её не обновляет),
+// а цены в таблице меняются; без этой проверки можно оплатить по устаревшей цене.
+// Если товара нет в таблице или таблица не загрузилась — тихо оставляем сохранённую цену,
+// чтобы не сломать оплату.
+function revalidateCartPrices(cart){
+  if (!Array.isArray(cart) || !cart.length) return { changed:false, raised:false };
+  const freshDict = priceDict;
+  const freshDecorDict = priceDecorDict;
+  if (!freshDict && !freshDecorDict) return { changed:false, raised:false };
+  let changed = false;
+  let raised = false; // цена выросла — покупателю нельзя молча выставить больше, чем он видел
+  cart.forEach(item => {
+    const isDecor = String(item.category||'').trim() === 'Декор';
+    const src = isDecor ? freshDecorDict : freshDict;
+    if (!src) return;
+    const tKey = norm(item.name||'');
+    const entry = src.byTitle.get(tKey) || src.byTitle.get(normCat(item.name||''));
+    if (!entry) return;
+
+    // У декора своя структура таблицы: варианты размеров, а не категории/высоты как у ёлок
+    let freshPrice = 0;
+    if (isDecor){
+      const variants = entry.variants || [];
+      if (variants.length){
+        // height у декора хранит размер варианта (например «120х40х60»)
+        const v = variants.find(o => String(o.size) === String(item.height)) || (variants.length===1 ? variants[0] : null);
+        if (!v) return;
+        freshPrice = num(v.price||0);
+      } else {
+        freshPrice = num(entry.price||0);
+      }
+    } else {
+      const list = entry.cats?.get(normCat(item.category||''));
+      if (!list || !list.length) return;
+      const match = list.find(o => String(o.height) === String(item.height)) || (list.length===1 ? list[0] : null);
+      if (!match) return;
+      freshPrice = num(match.price||0);
+    }
+    const oldPrice = num(item.price||0);
+    if (freshPrice > 0 && freshPrice !== oldPrice){
+      console.log('Цена товара обновлена перед оплатой:', item.name, oldPrice, '->', freshPrice);
+      item.price = freshPrice;
+      if (typeof item.basePrice === 'number') item.basePrice = freshPrice;
+      changed = true;
+      if (freshPrice > oldPrice) raised = true;
+    }
+  });
+  if (changed) { try{ setCart(cart); }catch(e){} }
+  return { changed, raised };
+}
+
 // Добавляет товар в корзину или увеличивает количество
 function addToCart(item){
   const cart = getCart();
@@ -1072,32 +1194,388 @@ let popupCache = {
   divider: null
 };
 
-// === Фото корзины → открываем ШТАТНЫЙ лайтбокс izo (#img-zoom-overlay) ===
-// Свой лайтбокс НЕ делаем (один источник правды). Проблема в том, что Taptop
-// (do.tt_link_universal.js) вешает на элементы корзины обработчик с stopPropagation,
-// поэтому делегированный обработчик izo (слушает document в bubble-фазе) НЕ получает
-// клик по фото корзины. Ловим клик в CAPTURE-фазе (раньше Taptop) и сами открываем
-// тот же izo-оверлей — его стили, крестик и закрытие (фон/Esc) работают штатно.
-let cartLightboxInited = false;
-function initCartLightbox(){
-  if (cartLightboxInited) return; cartLightboxInited = true;
-  document.addEventListener('click', e=>{
-    const img = e.target.closest('[data-cart-photo] img');
+// === Лайтбокс фотографий ===
+// Работает на всех страницах. На /tree/... стрелки листают фотографии
+// внутри текущего контейнера товара; на остальных страницах открывается
+// только выбранное изображение.
+function initImageLightbox(){
+  if(window.__ladyElkaImageLightboxInit) return;
+  window.__ladyElkaImageLightboxInit = true;
+
+  const isTreePage = /^\/tree(?:\/|$)/.test(window.location.pathname);
+  const denyAttr = 'data-nozoom';
+  const galleryRootSelector = [
+    '[data-gallery]',
+    '[data-product-gallery]',
+    '[data-tt-collection-item-id]',
+    '.product-card',
+    '.product-wrapper__cms',
+    '.collection__item'
+  ].join(',');
+  const photoWrapSelector = [
+    '.product__img',
+    '.product__img__cms',
+    '.product__img-dop',
+    '.product__img-dop__cms',
+    '[data-gallery-photo]',
+    '[data-zoom-photo]'
+  ].join(',');
+
+  const style = document.createElement('style');
+  style.id = 'lady-elka-image-lightbox-styles';
+  style.textContent = `
+    #img-zoom-overlay{
+      position:fixed; inset:0; display:none;
+      align-items:center; justify-content:center;
+      background:rgba(0,0,0,.9); z-index:2147483647;
+    }
+    #img-zoom-overlay.izo-open{
+      display:flex; animation:izo-fade .12s ease-out;
+    }
+    @keyframes izo-fade{ from{opacity:0} to{opacity:1} }
+    #img-zoom-overlay .izo-holder{
+      max-width:96vw; max-height:96vh;
+      display:flex; align-items:center; justify-content:center;
+    }
+    #img-zoom-overlay .izo-media,
+    #img-zoom-overlay .izo-media img{
+      display:block !important;
+      max-width:96vw; max-height:96vh;
+      box-shadow:0 10px 40px rgba(0,0,0,.6);
+      border-radius:8px; object-fit:contain;
+      user-select:none; -webkit-user-drag:none;
+    }
+    #img-zoom-overlay .izo-close,
+    #img-zoom-overlay .izo-arrow{
+      position:fixed; display:flex; align-items:center;
+      justify-content:center; padding:0; border:0; color:#fff;
+      background:rgba(255,255,255,.12); cursor:pointer; z-index:2;
+    }
+    #img-zoom-overlay .izo-close{
+      top:16px; right:16px; width:40px; height:40px;
+      border-radius:10px; font:700 24px/1 ui-sans-serif,system-ui,Arial;
+    }
+    #img-zoom-overlay .izo-arrow{
+      top:50%; width:44px; height:44px; margin-top:-22px;
+      border:1px solid rgba(255,255,255,.28);
+      border-radius:50%; font-size:0; line-height:0;
+      background:rgba(0,0,0,.42);
+      box-shadow:0 4px 16px rgba(0,0,0,.3);
+    }
+    #img-zoom-overlay .izo-arrow::before{
+      content:''; display:block; width:9px; height:9px;
+      border:solid #fff; border-width:0 2px 2px 0;
+    }
+    #img-zoom-overlay .izo-prev::before{ transform:rotate(135deg); margin-left:4px; }
+    #img-zoom-overlay .izo-next::before{ transform:rotate(-45deg); margin-right:4px; }
+    #img-zoom-overlay .izo-prev{ left:24px; }
+    #img-zoom-overlay .izo-next{ right:24px; }
+    #img-zoom-overlay .izo-close:hover,
+    #img-zoom-overlay .izo-arrow:hover{ background:rgba(255,255,255,.24); }
+    #img-zoom-overlay .izo-close:focus,
+    #img-zoom-overlay .izo-arrow:focus{
+      outline:2px solid rgba(255,255,255,.65); outline-offset:3px;
+    }
+    #img-zoom-overlay [hidden]{ display:none !important; }
+    img.can-zoom{ cursor:zoom-in; }
+    @media (max-width:600px){
+      #img-zoom-overlay .izo-arrow{
+        width:38px; height:38px; margin-top:-19px;
+      }
+      #img-zoom-overlay .izo-prev{ left:8px; }
+      #img-zoom-overlay .izo-next{ right:8px; }
+    }
+  `;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'img-zoom-overlay';
+  overlay.setAttribute('role','dialog');
+  overlay.setAttribute('aria-modal','true');
+  overlay.tabIndex = -1;
+
+  const holder = document.createElement('div');
+  holder.className = 'izo-holder';
+
+  const prevBtn = document.createElement('button');
+  prevBtn.type = 'button';
+  prevBtn.className = 'izo-arrow izo-prev';
+  prevBtn.setAttribute('aria-label','Предыдущее фото');
+  prevBtn.innerHTML = '&#10094;';
+
+  const nextBtn = document.createElement('button');
+  nextBtn.type = 'button';
+  nextBtn.className = 'izo-arrow izo-next';
+  nextBtn.setAttribute('aria-label','Следующее фото');
+  nextBtn.innerHTML = '&#10095;';
+
+  const closeBtn = document.createElement('button');
+  closeBtn.type = 'button';
+  closeBtn.className = 'izo-close';
+  closeBtn.setAttribute('aria-label','Закрыть');
+  closeBtn.textContent = '×';
+
+  overlay.append(holder, prevBtn, nextBtn, closeBtn);
+
+  function mount(){
+    if(!document.head.querySelector('#lady-elka-image-lightbox-styles')){
+      document.head.appendChild(style);
+    }
+    if(document.body && !document.body.contains(overlay)){
+      document.body.appendChild(overlay);
+    }
+  }
+
+  function getPhotoUrl(img){
+    return img.getAttribute('data-origin-src')
+      || img.currentSrc
+      || img.getAttribute('src')
+      || '';
+  }
+
+  function isPlaceholderImage(img){
+    const marker = [
+      getPhotoUrl(img),
+      img.getAttribute('src'),
+      img.getAttribute('data-origin-src'),
+      img.getAttribute('data-src'),
+      img.getAttribute('alt'),
+      img.className
+    ].filter(Boolean).join(' ').toLowerCase();
+
+    return /placeholder|no[-_ ]?image|no[-_ ]?photo|empty[-_ ]?image|default[-_ ]?image/.test(marker);
+  }
+
+  function isAllowedImage(img){
+    if(!img || img.nodeName !== 'IMG') return false;
+    if(img.hasAttribute(denyAttr) || img.closest('[' + denyAttr + ']')) return false;
+    if(!getPhotoUrl(img)) return false;
+    if(isPlaceholderImage(img)) return false;
+    if(!img.matches('[data-zoom="on"]') && img.closest('a[href]')) return false;
+    return true;
+  }
+
+  function isZoomable(img){
+    if(!isAllowedImage(img)) return false;
+    const box = img.getBoundingClientRect();
+    return box.width >= 48 && box.height >= 48;
+  }
+
+  function markZoomables(root){
+    if(!root) return;
+    const images = [];
+    if(root.nodeName === 'IMG') images.push(root);
+    if(root.querySelectorAll) images.push(...root.querySelectorAll('img'));
+    images.forEach(img=>{
+      if(isZoomable(img)) img.classList.add('can-zoom');
+      else img.classList.remove('can-zoom');
+    });
+  }
+
+  function getGalleryRoot(img){
+    return img.closest(galleryRootSelector) || img.parentElement || document;
+  }
+
+  function getGalleryImages(clickedImg){
+    const root = getGalleryRoot(clickedImg);
+    const candidates = Array.from(root.querySelectorAll('img'));
+    if(!candidates.includes(clickedImg)) candidates.push(clickedImg);
+
+    const result = [];
+    const seenUrls = new Set();
+
+    candidates.forEach(img=>{
+      if(!isAllowedImage(img)) return;
+
+      const inPhotoWrapper = img.closest(photoWrapSelector);
+      const explicitGallery = root.matches && root.matches(
+        '[data-gallery], [data-product-gallery]'
+      );
+      const box = img.getBoundingClientRect();
+      const largeVisibleImage = box.width >= 48 && box.height >= 48;
+
+      if(
+        img !== clickedImg
+        && !inPhotoWrapper
+        && !explicitGallery
+        && !largeVisibleImage
+      ) return;
+
+      const url = getPhotoUrl(img);
+      if(!url || seenUrls.has(url)) return;
+
+      seenUrls.add(url);
+      result.push(img);
+    });
+
+    return result.length ? result : [clickedImg];
+  }
+
+  let opened = false;
+  let gallery = [];
+  let galleryIndex = 0;
+  let previousOverflow = '';
+
+  function renderSlide(){
+    const img = gallery[galleryIndex];
     if(!img) return;
-    const overlay = document.getElementById('img-zoom-overlay');
-    const holder  = overlay && overlay.querySelector('.izo-holder');
-    if(!overlay || !holder) return; // izo не загрузился — ничего не навязываем
-    e.preventDefault(); e.stopPropagation();
+
     holder.innerHTML = '';
-    const node = img.cloneNode(true);
-    node.classList.add('izo-media');
-    node.loading = 'eager'; node.decoding = 'sync';
+
+    const picture = img.closest('picture');
+    let node;
+
+    if(picture){
+      node = picture.cloneNode(true);
+      node.classList.add('izo-media');
+      node.removeAttribute('hidden');
+      node.style.removeProperty('display');
+      node.style.removeProperty('visibility');
+      node.style.removeProperty('opacity');
+      const clonedImg = node.querySelector('img');
+      if(clonedImg){
+        clonedImg.classList.add('izo-media');
+        clonedImg.removeAttribute('hidden');
+        clonedImg.style.removeProperty('display');
+        clonedImg.style.removeProperty('visibility');
+        clonedImg.style.removeProperty('opacity');
+        clonedImg.decoding = 'sync';
+        clonedImg.loading = 'eager';
+        const url = getPhotoUrl(img);
+        if(url) clonedImg.src = url;
+      }
+    } else {
+      node = img.cloneNode(true);
+      node.classList.add('izo-media');
+      node.removeAttribute('hidden');
+      node.style.removeProperty('display');
+      node.style.removeProperty('visibility');
+      node.style.removeProperty('opacity');
+      node.decoding = 'sync';
+      node.loading = 'eager';
+      const url = getPhotoUrl(img);
+      if(url) node.src = url;
+    }
+
     holder.appendChild(node);
-    overlay.classList.add('izo-open');
+
+    const hasGallery = isTreePage && gallery.length > 1;
+    prevBtn.hidden = !hasGallery;
+    nextBtn.hidden = !hasGallery;
+  }
+
+  function openZoomFrom(img){
+    mount();
+
+    gallery = isTreePage ? getGalleryImages(img) : [img];
+    galleryIndex = Math.max(0, gallery.indexOf(img));
+    renderSlide();
+
+    previousOverflow = document.documentElement.style.overflow;
     document.documentElement.style.overflow = 'hidden';
-  }, true); // capture — раньше, чем Taptop остановит всплытие
+    overlay.classList.add('izo-open');
+    opened = true;
+
+    setTimeout(()=>overlay.focus(), 0);
+  }
+
+  function showSlide(step){
+    if(!opened || gallery.length < 2) return;
+    galleryIndex = (galleryIndex + step + gallery.length) % gallery.length;
+    renderSlide();
+  }
+
+  function closeZoom(){
+    if(!opened) return;
+    overlay.classList.remove('izo-open');
+    document.documentElement.style.overflow = previousOverflow;
+    holder.innerHTML = '';
+    gallery = [];
+    galleryIndex = 0;
+    opened = false;
+  }
+
+  document.addEventListener('click', e=>{
+    const img = e.target.closest && e.target.closest('img');
+    if(!img || overlay.contains(img) || !isZoomable(img)) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openZoomFrom(img);
+  }, true);
+
+  prevBtn.addEventListener('click', e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    showSlide(-1);
+  });
+
+  nextBtn.addEventListener('click', e=>{
+    e.preventDefault();
+    e.stopPropagation();
+    showSlide(1);
+  });
+
+  closeBtn.addEventListener('click', closeZoom);
+
+  overlay.addEventListener('click', e=>{
+    if(e.target === overlay) closeZoom();
+  });
+
+  document.addEventListener('keydown', e=>{
+    if(!opened) return;
+    if(e.key === 'Escape') closeZoom();
+    if(e.key === 'ArrowLeft'){
+      e.preventDefault();
+      showSlide(-1);
+    }
+    if(e.key === 'ArrowRight'){
+      e.preventDefault();
+      showSlide(1);
+    }
+  });
+
+  const init = ()=>{
+    mount();
+    markZoomables(document);
+  };
+
+  if(document.readyState === 'loading'){
+    document.addEventListener('DOMContentLoaded', init, {once:true});
+  } else {
+    init();
+  }
+
+  const observer = new MutationObserver(mutations=>{
+    mutations.forEach(mutation=>{
+      if(mutation.type === 'childList'){
+        mutation.addedNodes.forEach(node=>{
+          if(node.nodeType === 1) markZoomables(node);
+        });
+      }
+
+      if(
+        mutation.type === 'attributes'
+        && mutation.target.nodeName === 'IMG'
+      ){
+        markZoomables(mutation.target);
+      }
+    });
+  });
+
+  observer.observe(document.documentElement, {
+    subtree:true,
+    childList:true,
+    attributes:true,
+    attributeFilter:[
+      'src',
+      'srcset',
+      'data-origin-src',
+      'data-nozoom',
+      'style'
+    ]
+  });
 }
-initCartLightbox();
+
+initImageLightbox();
 
 // Заполняет попап всеми товарами из корзины (упрощенная версия)
 function fillPopup(){
@@ -1625,7 +2103,9 @@ document.addEventListener('click',e=>{
     if(popupObserver){
       popupObserver.disconnect();
     }
-    
+
+    syncCartPricesAndRender(); // подтягиваем актуальные цены в уже лежащую корзину
+
     // Открываем попап сразу
     popup.style.display = '';
     popup.style.visibility = '';
@@ -1727,6 +2207,7 @@ const popupObserver = popup ? new MutationObserver(()=>{
     if(!wasPopupOpen){
       itemElementsCache = new WeakMap();
       isManuallyOpening = false; // Сбрасываем флаг после открытия
+      syncCartPricesAndRender(); // цены могли измениться, пока корзина лежала — освежаем
     }
     wasPopupOpen = true;
     
@@ -1788,65 +2269,38 @@ startScrollRestoreWatch();
 (function(){
   'use strict';
   
-function openPayInNewTab(payload){
+async function openPayInNewTab(payload){
   const endpoint = String(window.PAYMENT_ENDPOINT || '').trim();
   if (!endpoint) {
-    alert('PAYMENT_ENDPOINT не настроен');
+    alert('Платёжный сервис не настроен');
     return;
   }
-  
-  // Определяем, мобильное ли устройство
+
   const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
                    (window.innerWidth <= 768 && 'ontouchstart' in window);
-  
-  // Простой подход: делаем fetch из текущей страницы и открываем URL
-  fetch(endpoint, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload)
-  })
-  .then(r => {
-    if (!r.ok) throw new Error('API error: ' + r.status);
-    return r.text();
-  })
-  .then(txt => {
-    let data;
-    try {
-      data = JSON.parse(txt);
-    } catch(e) {
-      throw new Error('Invalid JSON response');
+  const payWindow = isMobile ? null : window.open('', '_blank');
+  if (payWindow) {
+    payWindow.document.title = 'Переход к оплате';
+    payWindow.document.body.textContent = 'Создаём платёж…';
+  }
+
+  try {
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const result = await response.json().catch(function(){ return {}; });
+    if (!response.ok || !result.url) {
+      throw new Error(result.message || result.errorMessage || result.error || 'Не удалось создать платёж');
     }
-    if (!data || !data.url) {
-      throw new Error('No URL in response');
-    }
-    const url = data.url;
-    if (/(?:^|\/)(spasibo|thanks)(?:\/|$)/i.test(url)) {
-      throw new Error('Thank page URL received');
-    }
-    
-    // На мобильных устройствах сразу делаем редирект в текущей вкладке
-    // На десктопе пытаемся открыть в новой вкладке
-    if (isMobile) {
-      // На мобильных устройствах window.open часто блокируется
-      // Делаем редирект в текущей вкладке
-      window.location.href = url;
-    } else {
-      // На десктопе пытаемся открыть в новой вкладке
-      const w = window.open(url, '_blank');
-      
-      // Если не удалось открыть (блокировка всплывающих окон)
-      // Делаем редирект в текущей вкладке
-      if (!w || w.closed || typeof w.closed === 'undefined') {
-        if (confirm('Не удалось открыть новую вкладку. Перейти к оплате в текущей вкладке?')) {
-          window.location.href = url;
-        }
-      }
-    }
-  })
-  .catch(e => {
-    console.error('Payment error:', e);
-    alert('Не удалось создать ссылку на оплату: ' + (e.message || e));
-  });
+    if (payWindow && !payWindow.closed) payWindow.location.replace(result.url);
+    else window.location.assign(result.url);
+  } catch (error) {
+    if (payWindow && !payWindow.closed) payWindow.close();
+    console.error('Payment creation failed:', error);
+    alert(error && error.message ? error.message : 'Не удалось создать платёж. Попробуйте ещё раз.');
+  }
 }
 
 // Явно объявляем функцию глобально для доступа из других скриптов
@@ -1855,7 +2309,9 @@ window.openPayInNewTab = openPayInNewTab;
 })(); // конец IIFE
 
 // ————————————————— Ускоряем первое соединение
-window.PAYMENT_ENDPOINT='https://d5dn0769q2kt0hkqs03k.9bgyfspn.apigw.yandexcloud.net/api/pay';
+// Создание платежа и проверка статуса идут через Supabase Edge Function.
+window.PAYMENT_ENDPOINT='https://mgnotvaahftrbifqtahf.supabase.co/functions/v1/pay';
+// старый (заблокирован): https://d5dn0769q2kt0hkqs03k.9bgyfspn.apigw.yandexcloud.net/api/pay
 
 // Проверяем, что функция openPayInNewTab доступна (fallback для случая, если скрипты загружаются в неправильном порядке)
 // Примечание: функция уже объявлена в window в скрипте 2, но оставляем проверку на всякий случай
@@ -2327,6 +2783,20 @@ document.addEventListener('click', async (ev)=>{
   // товары из корзины обязательны
   const cart = getCart();
   if (!cart.length) { alert('Корзина пуста'); return; }
+  // Подтягиваем актуальные цены из таблицы перед оплатой.
+  // Если цена выросла — не списываем молча больше, чем показали: обновляем корзину и просим подтвердить.
+  {
+    const priceCheck = revalidateCartPrices(cart);
+    if (priceCheck.changed){
+      itemElementsCache = new WeakMap();
+      fillPopup();
+      if (typeof window.LE_Promo !== 'undefined' && window.LE_Promo.render) window.LE_Promo.render();
+      if (priceCheck.raised){
+        alert('Цена на товар в корзине изменилась. Проверьте, пожалуйста, сумму и нажмите оплату ещё раз.');
+        return;
+      }
+    }
+  }
 
   // НАЛОЖКА: отправляем форму стандартным способом, TapTop сам обработает и сделает редирект
   if (mode === 'cod'){
@@ -2441,6 +2911,9 @@ document.addEventListener('click', async (ev)=>{
       return `${item.name||'Товар'}${item.height?` ${item.height} см`:''}${item.category?` (${item.category})`:''}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
     }).join(' | ');
     let descr = itemsList;
+    if (name) descr += ` | Покупатель: ${name}`;
+    if (email) descr += ` | Почта: ${email}`;
+    if (phone) descr += ` | Телефон: ${phone}`;
     if (address) descr += ` | Адрес: ${address}`;
     if (contactPref) descr += ` | Связь: ${contactPref}`;
     if (promoCode) descr += ` | Промо: ${promoCode}`;
@@ -2461,14 +2934,21 @@ document.addEventListener('click', async (ev)=>{
     
     // Применяем промокод
     let totalAmount = baseAmount;
+    let promoDiscountLabel = '';
+    let promoGiftLabel = '';
     try {
       const promoState = JSON.parse(localStorage.getItem('lady_promo_state')||'null');
       if(promoState && promoState.rub>0){
         totalAmount = Math.max(0, baseAmount - promoState.rub);
+        promoDiscountLabel = `${promoState.rub} ₽`;
       } else if(promoState && promoState.pct>0){
         totalAmount = Math.max(0, Math.round(baseAmount * (1 - promoState.pct/100)));
+        promoDiscountLabel = `${promoState.pct}% (${Math.max(0, baseAmount - totalAmount)} ₽)`;
       }
+      if (promoState && promoState.gift) promoGiftLabel = promoState.giftText || 'да';
     } catch(e){}
+    if (promoDiscountLabel) descr += ` | Скидка по промокоду: ${promoDiscountLabel}`;
+    if (promoGiftLabel) descr += ` | Подарок по промокоду: ${promoGiftLabel}`;
         
     const payload = {
       amount: totalAmount,
@@ -2602,6 +3082,20 @@ document.addEventListener('touchend', async (ev)=>{
     touchStartTarget = null;
     return;
   }
+  // Подтягиваем актуальные цены из таблицы перед оплатой (см. revalidateCartPrices)
+  {
+    const priceCheck = revalidateCartPrices(cart);
+    if (priceCheck.changed){
+      itemElementsCache = new WeakMap();
+      fillPopup();
+      if (typeof window.LE_Promo !== 'undefined' && window.LE_Promo.render) window.LE_Promo.render();
+      if (priceCheck.raised){
+        alert('Цена на товар в корзине изменилась. Проверьте, пожалуйста, сумму и нажмите оплату ещё раз.');
+        touchStartTarget = null;
+        return;
+      }
+    }
+  }
   
   // НАЛОЖКА: отправляем форму стандартным способом, TapTop сам обработает и сделает редирект
   if (mode === 'cod') {
@@ -2711,6 +3205,9 @@ document.addEventListener('touchend', async (ev)=>{
       return `${item.name||'Товар'}${item.height?` ${item.height} см`:''}${item.category?` (${item.category})`:''}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
     }).join(' | ');
     let descr = itemsList;
+    if (name) descr += ` | Покупатель: ${name}`;
+    if (email) descr += ` | Почта: ${email}`;
+    if (phone) descr += ` | Телефон: ${phone}`;
     if (address) descr += ` | Адрес: ${address}`;
     if (contactPref) descr += ` | Связь: ${contactPref}`;
     if (promoCode) descr += ` | Промо: ${promoCode}`;
@@ -2725,14 +3222,21 @@ document.addEventListener('touchend', async (ev)=>{
     
     // Применяем промокод
     let totalAmount = baseAmount;
+    let promoDiscountLabel = '';
+    let promoGiftLabel = '';
     try {
       const promoState = JSON.parse(localStorage.getItem('lady_promo_state')||'null');
       if(promoState && promoState.rub>0){
         totalAmount = Math.max(0, baseAmount - promoState.rub);
+        promoDiscountLabel = `${promoState.rub} ₽`;
       } else if(promoState && promoState.pct>0){
         totalAmount = Math.max(0, Math.round(baseAmount * (1 - promoState.pct/100)));
+        promoDiscountLabel = `${promoState.pct}% (${Math.max(0, baseAmount - totalAmount)} ₽)`;
       }
+      if (promoState && promoState.gift) promoGiftLabel = promoState.giftText || 'да';
     } catch(e){}
+    if (promoDiscountLabel) descr += ` | Скидка по промокоду: ${promoDiscountLabel}`;
+    if (promoGiftLabel) descr += ` | Подарок по промокоду: ${promoGiftLabel}`;
     
     const payload = {
       amount: totalAmount,
@@ -2838,7 +3342,7 @@ document.addEventListener('submit',(e)=>{
 // === СКРИПТ 4 ===
 /* PROMO v4-lite — TapTop совместимо, без "", с тост-уведомлениями снизу по центру */
 (function(){
-  var PROMO_SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQBYDczXmGsnVqSrCuzjsMwz6-DZu3Q6pSjb66YUkgPxxt7UDecZLll9QZFHU0BHhKc3GMZ4xFoouXB/pub?gid=301234033&single=true&output=csv';
+  // Адрес базы промокодов задаётся один раз в src/catalog/config.js.
   var CART_KEY  = 'cart';
   var PROMO_KEY = 'lady_promo_state'; // {code,rub,pct,basePrice}
 

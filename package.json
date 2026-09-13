@@ -6,9 +6,15 @@
   "description": "Lady Elka — интернет-магазин ёлок (Taptop + Yandex Cloud Function + Google Sheets)",
   "scripts": {
     "build": "node build.mjs",
-    "watch": "node build.mjs --watch"
+    "watch": "node build.mjs --watch",
+    "dev:app": "node --watch app/server/index.mjs",
+    "start:app": "node app/server/index.mjs",
+    "test:app": "node --test app/tests/*.test.mjs"
   },
   "devDependencies": {
     "esbuild": "^0.24.0"
+  },
+  "dependencies": {
+    "sharp": "^0.35.4"
   }
 }
