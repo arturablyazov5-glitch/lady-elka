@@ -6,7 +6,7 @@ export function calculatePrice(base,settings){
 export function resolveType(v,settings){return settings.types.find(t=>t.id===v.type_id)||settings.types.find(t=>t.name===v.category||t.aliases?.includes(v.category));}
 export function pricedProduct(p,settings){return {...p,variants:p.variants.map(v=>{
  const base=v.base_price??v.price;
- const type=p.kind==='trees'?resolveType(v,settings):null;
+ const type=resolveType(v,settings);
  return {...v,base_price:base,...calculatePrice(base,settings),...(type?{type_id:type.id,category:type.name}:{})};
 })};}
 export function validateSettings(s){

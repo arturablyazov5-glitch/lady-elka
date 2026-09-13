@@ -107,6 +107,7 @@ export async function loadDecorDict(){
   const alias = {
     id: ['id','код','sku','артикул'],
     title:['title','наименование','товар'],
+    category:['category','категория','тип'],
     price:['price','оригинальная цена','цена','цена на таблице'],
     description:['description','описание','desc'],
     photos:['photos','фото','картинки','галерея'],
@@ -148,6 +149,7 @@ export async function loadDecorDict(){
     const idKey = normId(idRaw);
     const tRaw  = (r[col('title')]||'').trim();
     const p = num(r[col('price')]||'');
+    const category = col('category')!=null ? String(r[col('category')]||'').trim() : '';
     const desc = col('description')!=null ? (r[col('description')]||'').trim() : '';
     const phRaw  = col('photos')!=null ? (r[col('photos')]||'') : '';
     const photos = phRaw.split('|').map(s=>s.trim()).filter(Boolean);
@@ -174,19 +176,21 @@ export async function loadDecorDict(){
 
     // Проверяем, есть ли вариант (не пустое и не "-")
     const hasVariant = variantsRaw && variantsRaw.trim() !== '' && variantsRaw.trim() !== '-';
+    const hasChoice = hasVariant || !!category;
     const size = hasVariant ? extractSize(variantsRaw) : null;
 
     if (!idKey) continue; // Пропускаем строки без ID
 
     // Все строки с вариантами добавляем в промежуточное хранилище
-    if (hasVariant && size) {
+    if (hasChoice) {
       // Это вариант товара - сохраняем в промежуточное хранилище
       if (!variantsByProductId.has(idKey)) {
         variantsByProductId.set(idKey, []);
       }
       variantsByProductId.get(idKey).push({
-        variantText: variantsRaw.trim(), // Полный текст варианта (например, "120x40x60 (+200 ₽)")
-        size: size, // Извлеченный размер (например, "120х40х60")
+        variantText: hasVariant ? variantsRaw.trim() : category,
+        size: size || '',
+        category,
         price: p, // Цена из колонки price этой строки
         description: desc,
         photos: photos,
@@ -241,6 +245,7 @@ export async function loadDecorDict(){
       entry.variants = variantsList.map(v => ({
         variantText: v.variantText, // Полный текст для отображения (например, "120x40x60 (+200 ₽)")
         size: v.size, // Размер для отображения (например, "120х40х60")
+        category: v.category || '',
         price: v.price, // Цена из колонки price таблицы для этого варианта
         description: v.description || entry.description,
         photos: v.photos.length > 0 ? v.photos : entry.photos

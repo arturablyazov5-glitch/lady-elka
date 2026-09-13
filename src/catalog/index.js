@@ -401,6 +401,124 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
   variantsDecorEl.classList.remove('dd-open');
 }
 
+// Декор использует тот же принцип, что и ёлки: сначала выбирается тип,
+// затем доступный для него размер. Разметка типа создаётся из готового
+// Taptop-контрола размера, поэтому вручную добавлять блок в каждую карточку не нужно.
+function initDecorCard(card, entry, titleEl, titleNow) {
+  const sheetTitle = entry.title || titleNow;
+  if (titleEl && sheetTitle && sheetTitle !== titleNow) {
+    (titleEl.querySelector?.('.text-block-wrap-div') || titleEl).textContent = sheetTitle;
+  }
+
+  const priceEl = card.querySelector('[data-price-decor]');
+  const buy = card.querySelector('.buy-btn');
+  const image = card.querySelector('.product__img img, .product__img__cms img, .image__img, img');
+  const descriptionEl = card.querySelector('.text--u-ibls00792, [data-product-id].text--u-ibls00792');
+  const sizeControl = card.querySelector('[data-variants-decor]');
+  const allVariants = entry.variants || [];
+  const types = [...new Set(allVariants.map(v => String(v.category || '').trim()).filter(Boolean))];
+
+  const setImage = variant => {
+    const photo = variant?.photos?.[0] || entry.photos?.[0] || '';
+    if (!image || !photo) return;
+    image.src = photo;
+    image.setAttribute('data-origin-src', photo);
+    image.classList.add('can-zoom');
+  };
+  const setDescription = variant => {
+    if (!descriptionEl) return;
+    const text = (variant?.description || entry.description || '').trim();
+    const target = descriptionEl.querySelector('.text-block-wrap-div') || descriptionEl;
+    setHtmlWithNewlines(target, text);
+    descriptionEl.style.display = text ? '' : 'none';
+  };
+  const setPriceAndBuy = variant => {
+    const price = variant?.price || entry.price || 0;
+    if (priceEl) setText(priceEl, rub(price));
+    if (!buy) return;
+    buy.dataset.name = sheetTitle;
+    buy.dataset.price = price;
+    buy.dataset.photo = variant?.photos?.[0] || entry.photos?.[0] || '';
+    buy.dataset.category = 'Декор';
+    buy.dataset.height = variant?.size || '';
+    buy.dataset.diam = '';
+    buy.dataset.branches = '';
+  };
+  const setControlText = (control, text) => {
+    const target = control?.querySelector('.text.site-catalog__h3, .site-catalog__h3');
+    if (target) setText(target, text);
+  };
+  const bindControl = (control, values, label, onSelect) => {
+    if (!control) return;
+    const list = ensureList(control, control.hasAttribute('data-decor-type') ? 'decor-type' : 'variants-decor');
+    list.innerHTML = '';
+    values.forEach((value, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.setAttribute('data-dd-option', '');
+      button.style.cssText = 'display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:transparent;cursor:pointer';
+      const span = document.createElement('span');
+      span.className = 'site__h5 color__h3';
+      span.textContent = label(value);
+      button.appendChild(span);
+      button.addEventListener('click', event => { event.stopPropagation(); onSelect(value, index); closeAllDD(); });
+      list.appendChild(button);
+    });
+    control.onclick = event => {
+      if (event.target.closest('[data-dd-option]')) return;
+      event.stopPropagation();
+      const open = list.style.display !== 'none' && list.style.display !== '' && control.classList.contains('dd-open');
+      closeAllDD();
+      if (!open) openDD(control, list);
+    };
+    control.style.position = 'relative';
+    control.style.cursor = 'pointer';
+    control.style.userSelect = 'none';
+    attachHover(list);
+  };
+
+  let typeControl = card.querySelector('[data-decor-type]');
+  if (types.length > 1 && sizeControl && !typeControl) {
+    typeControl = sizeControl.cloneNode(true);
+    typeControl.removeAttribute('data-variants-decor');
+    typeControl.removeAttribute('data-variants');
+    typeControl.removeAttribute('data-selected-index');
+    typeControl.setAttribute('data-decor-type', '');
+    typeControl.querySelectorAll('[data-dd-list]').forEach(node => node.remove());
+    typeControl.querySelectorAll('[id]').forEach(node => node.removeAttribute('id'));
+    typeControl.removeAttribute('id');
+    sizeControl.parentNode.insertBefore(typeControl, sizeControl);
+  }
+
+  const renderType = type => {
+    const variants = type ? allVariants.filter(v => String(v.category || '').trim() === type) : allVariants;
+    const first = variants[0] || null;
+    setDescription(first);
+    setImage(first);
+    setPriceAndBuy(first);
+
+    if (typeControl) {
+      setControlText(typeControl, type);
+      typeControl.style.display = types.length > 1 ? '' : 'none';
+    }
+    if (!sizeControl) return;
+    const needsSize = variants.length > 1 || !!first?.size;
+    sizeControl.style.display = needsSize ? '' : 'none';
+    if (!needsSize) return;
+    setControlText(sizeControl, first?.size || first?.variantText || 'Выберите размер');
+    bindControl(sizeControl, variants, variant => variant.variantText || variant.size || 'Вариант', variant => {
+      setControlText(sizeControl, variant.size || variant.variantText || 'Вариант');
+      setDescription(variant);
+      setImage(variant);
+      setPriceAndBuy(variant);
+      sizeControl.classList.remove('dd-open');
+    });
+  };
+
+  if (typeControl) bindControl(typeControl, types, type => type, type => renderType(type));
+  renderType(types[0] || '');
+}
+
 /* --- initCards: ID-first matching, кликабельна вся плашка --- */
 (async function initCards(){
   const toId = s => String(s||'').trim().toLowerCase();
@@ -493,6 +611,9 @@ function selectVariant(card, variantsDecorEl, entry, variantIndex) {
         console.warn('нет активных строк для декора', pid || titleNow);
         return; // не скрываем декор, если его нет в таблице
       }
+
+      initDecorCard(card, entry, titleEl, titleNow);
+      return;
 
       const sheetTitle = entry.title || titleNow;
       if (titleEl && sheetTitle && sheetTitle !== titleNow) {

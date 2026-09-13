@@ -1,7 +1,7 @@
 import { parseCSV, num } from '../../src/catalog/utils.js';
 export const columns = {
   trees: ['id','title','category','height_cm','price','diameter_cm','branches','offer','discount_pct','photos','active','description'],
-  decor: ['id','title','price','variants','photos','active','description']
+  decor: ['id','title','category','price','variants','photos','active','description']
 };
 export const isActive = v => /^(1|true|t|да|yes|y|on|ok|✓|истина)$/i.test(String(v).trim());
 export function importCSV(csv, kind) {

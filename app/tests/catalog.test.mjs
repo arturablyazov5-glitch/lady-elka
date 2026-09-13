@@ -21,6 +21,19 @@ test('export produces exactly the same dictionaries for the existing Taptop load
   assert.deepEqual(actual,expected);
  }finally{globalThis.fetch=originalFetch;}
 });
+test('decor CSV preserves types and exposes them as selectable variants',async()=>{
+ const product={kind:'decor',sku:'typed-decor',title:'Венок',variants:[
+  {category:'Зелёная',price:1000,variants:'-',photos:['https://example.com/green.webp'],active:true,description:'Зелёный'},
+  {category:'Заснеженная',price:1200,variants:'-',photos:['https://example.com/snow.webp'],active:true,description:'Заснеженный'}
+ ]};
+ const originalFetch=globalThis.fetch;
+ try{
+  globalThis.fetch=async()=>new Response(exportCSV([product],'decor'));
+  const entry=(await loadDecorDict()).byId.get('typed-decor');
+  assert.deepEqual(entry.variants.map(v=>v.category),['Зелёная','Заснеженная']);
+  assert.deepEqual(entry.variants.map(v=>v.variantText),['Зелёная','Заснеженная']);
+ }finally{globalThis.fetch=originalFetch;}
+});
 test('CSV correctly round trips quotes, commas and multiline descriptions',()=>{
  const p=structuredClone(products[0]);p.title='Ёлка "Снежная", большая';p.variants[0].description='Первая строка\nВторая, "цитата"';
  const csv=exportCSV([p],'trees'),rows=parseCSV(csv),head=rows.shift();assert.equal(rows[0][head.indexOf('title')],p.title);assert.equal(rows[0][head.indexOf('description')],p.variants[0].description);

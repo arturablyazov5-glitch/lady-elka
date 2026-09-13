@@ -1,4 +1,5 @@
-export const groupName = (p,v) => p.kind==='decor'?'Размеры и варианты':v.category;
+// Старый декор может быть без типа: сохраняем его в отдельной fallback-группе.
+export const groupName = (p,v) => p.kind==='decor'?(v.category || 'Без типа'):v.category;
 // Русское склонение по числительному: 1 размер, 2 размера, 5 размеров.
 export function pluralRu(n,[one,few,many]){
  const mod10=n%10,mod100=n%100;

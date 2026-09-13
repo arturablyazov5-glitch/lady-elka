@@ -28,7 +28,7 @@ function prepareProduct(input,settings){
  if(!input||!Array.isArray(input.variants))throw new Error('Некорректная карточка товара');
  for(const v of input.variants){
   if(!Number.isFinite(v.base_price)||v.base_price<=0||v.base_price>1e8)throw new Error('Укажите базовую цену больше нуля');
-  if(input.kind==='trees'&&!settings.types.some(t=>t.id===v.type_id))throw new Error('Выберите тип из настроек');
+  if(v.type_id&&!settings.types.some(t=>t.id===v.type_id))throw new Error('Выберите тип из настроек');
  }
  return validateProduct(pricedProduct(input,settings));
 }
@@ -76,7 +76,7 @@ const server=http.createServer(async(req,res)=>{
     const input=validateSettings(await body(req)),old=await getSettings();
     if(input.revision!==old.revision)return send(res,409,{error:'Настройки изменились в другом окне. Обновите страницу и повторите.'});
     const products=await listProducts();
-    const used=new Set(products.filter(p=>p.kind==='trees').flatMap(p=>p.variants.map(v=>resolveType(v,old)?.id)));
+    const used=new Set(products.flatMap(p=>p.variants.map(v=>resolveType(v,old)?.id)));
     if(old.types.some(t=>used.has(t.id)&&!input.types.some(n=>n.id===t.id)))return send(res,400,{error:'Нельзя удалить тип, который используется в товарах. Сначала выберите для них другой тип.'});
     const payload={discount_pct:input.discount_pct,adjustment_pct:input.adjustment_pct,types:input.types.map(t=>{const prior=old.types.find(p=>p.id===t.id);return {id:t.id,name:t.name.trim(),aliases:prior?[...new Set([...(prior.aliases||[]),prior.name])]:[]};})};
     const rows=await db(`le_catalog_settings?id=eq.1&revision=eq.${old.revision}`,{method:'PATCH',headers:{Prefer:'return=representation'},body:JSON.stringify({payload,revision:old.revision+1,updated_at:new Date().toISOString()})});
