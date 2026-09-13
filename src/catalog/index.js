@@ -517,6 +517,12 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     sizeControl.parentNode.insertBefore(typeControl, sizeControl);
   }
 
+  // В конструкторе Taptop эта плашка (класс вида div--u-XXXXXXXX) у части карточек
+  // скрыта через display:none!important — обычный style.display это не перебивает,
+  // поэтому показываем/прячем тоже через !important.
+  const showRow = el => el && el.style.setProperty('display', 'flex', 'important');
+  const hideRow = el => el && el.style.setProperty('display', 'none', 'important');
+
   const renderType = type => {
     const variants = type ? allVariants.filter(v => String(v.category || '').trim() === type) : allVariants;
     const first = variants[0] || null;
@@ -526,11 +532,11 @@ function initDecorCard(card, entry, titleEl, titleNow) {
 
     if (typeControl) {
       setControlText(typeControl, type);
-      typeControl.style.display = types.length > 1 ? '' : 'none';
+      (types.length > 1 ? showRow : hideRow)(typeControl);
     }
     if (!sizeControl) return;
     const needsSize = variants.length > 1 || !!first?.size;
-    sizeControl.style.display = needsSize ? '' : 'none';
+    (needsSize ? showRow : hideRow)(sizeControl);
     if (!needsSize) return;
     setControlText(sizeControl, first?.size || first?.variantText || 'Выберите размер');
     bindControl(sizeControl, variants, variant => variant.variantText || variant.size || 'Вариант', variant => {
