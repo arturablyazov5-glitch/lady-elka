@@ -47,12 +47,8 @@ function smallInput(v,key,label,{min=0,max=1e9,readonly=false}={}){
 }
 function renderGroups(){
  const groups=getGroups(draft);if(!groups.includes(activeGroup))activeGroup=groups[0];
- // У декора нет типов (Зелёная/Заснеженная и т.п.) — только один общий список размеров и вариантов.
- // Типы (вкладки категорий) — только для ёлок/туй. Смешивать оба режима на одном товаре нельзя.
- $('#groups-title').textContent=draft.kind==='trees'?'Типы товара':'Размеры и варианты';
- $('#groups-hint').textContent=draft.kind==='trees'?'У каждого типа — свои размеры, цены и фотографии.':'Все размеры и варианты этого товара — в одном списке.';
- $('#add-group').hidden=draft.kind!=='trees';
- $('#group-tabs').hidden=groups.length<=1;
+ $('#groups-title').textContent='Типы товара';$('#groups-hint').textContent='У каждого типа — свои размеры, цены и фотографии.';
+ $('#add-group').hidden=false;$('#group-tabs').hidden=false;
  $('#product-visibility-toggle').checked=draft.variants.some(v=>v.active);
  $('#group-tabs').innerHTML=groups.map((name,i)=>`<button type="button" role="tab" id="group-tab-${i}" aria-controls="group-panel" aria-selected="${name===activeGroup}" tabindex="${name===activeGroup?'0':'-1'}" data-group="${esc(name)}" class="group-tab ${name===activeGroup?'selected':''}">${esc(name)}<span>${groupVariants(draft,name).length}</span></button>`).join('');
  const vs=rows(),common=sharedContent(vs),media=contentRows()[0];
