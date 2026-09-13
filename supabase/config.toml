@@ -5,3 +5,8 @@ project_id = "lady-elka"
 # не присылают Supabase JWT, поэтому проверку авторизации отключаем.
 [functions.pay]
 verify_jwt = false
+
+# Публичная точка входа: собственная HMAC-сессия защищает админские маршруты,
+# а CSV-фиды остаются доступны сайту без Supabase JWT.
+[functions.catalog]
+verify_jwt = false

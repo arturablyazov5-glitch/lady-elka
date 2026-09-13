@@ -6,7 +6,10 @@ const pict=(name)=>icon(name);
 function icons(root=document){root.querySelectorAll('[data-icon]').forEach(e=>e.innerHTML=pict(e.dataset.icon));}
 icons();
 let catalogSettings=null;
-let products=[],kind='all',draft=null,original='',saving=false,sourceOrigin=location.origin,toastTimer,uploading=false;
+const API_BASE='https://mgnotvaahftrbifqtahf.supabase.co/functions/v1/catalog';
+const SESSION_KEY='lady-elka-catalog-session';
+let sessionToken=sessionStorage.getItem(SESSION_KEY)||'';
+let products=[],kind='all',draft=null,original='',saving=false,sourceOrigin=API_BASE,toastTimer,uploading=false;
 // Общее подтверждение «Закрыть без сохранения?» для карточки товара и промокода.
 let pendingDiscard=null;
 function confirmDiscard(action){pendingDiscard=action;$('#confirm-dialog').showModal();}
@@ -25,10 +28,11 @@ const editDistance=(a,b)=>{const row=[...Array(b.length+1).keys()];for(let i=1;i
 function searchScore(query,p){const q=normalizeSearch(query);if(!q)return 0;const hay=normalizeSearch([p.title,p.sku,...p.variants.flatMap(v=>[v.category,v.variants,v.height_cm]).filter(Boolean)].join(' '));const qTokens=q.split(' ');const words=hay.split(' ');let score=0;for(const token of qTokens){if(!token)continue;let best=0;for(const word of words){if(word===token)best=Math.max(best,1);else if(word.startsWith(token))best=Math.max(best,.92);else if(token.length>=3)best=Math.max(best,similarity(word,token));else if(word.includes(token))best=Math.max(best,.78);if(token.length>=3&&token.length<=8&&word.length<=12)best=Math.max(best,1-editDistance(word,token)/Math.max(word.length,token.length));}if(best<.42)return 0;score+=best;}const title=normalizeSearch(p.title),sku=normalizeSearch(p.sku);if(title===q)score+=1.2;else if(title.startsWith(q))score+=.7;if(sku===q)score+=1.4;return score/qTokens.length;}
 async function api(url,options={}){
  let res;
- try{res=await fetch(url,{...options,headers:{'Content-Type':'application/json','X-Catalog-Request':'1',...options.headers}});}
+ const headers={'Content-Type':'application/json','X-Catalog-Request':'1',...(sessionToken?{Authorization:`Bearer ${sessionToken}`} : {}),...options.headers};
+ try{res=await fetch(`${API_BASE}${url}`,{...options,headers});}
  catch{throw new Error('Нет связи с сервером');}
  const data=await res.json().catch(()=>null);
- if(!res.ok){if(res.status===401 && !$('#login-dialog').open) $('#login-dialog').showModal();throw new Error(data?.error || 'Не удалось выполнить запрос');}
+ if(!res.ok){if(res.status===401){sessionToken='';sessionStorage.removeItem(SESSION_KEY);if(!$('#login-dialog').open) $('#login-dialog').showModal();}throw new Error(data?.error || 'Не удалось выполнить запрос');}
  if(data===null)throw new Error('Некорректный ответ сервера');
  return data;
 }
@@ -63,5 +67,5 @@ function renderFeeds(){
  $('#feed-links').innerHTML=[['trees','Ёлки и туи'],['decor','Декор'],['promos','Промокоды']].map(([key,title])=>{const url=`${sourceOrigin}/feeds/${key}.csv`;return `<section class="feed-card"><div class="feed-title"><div><h3>${title}</h3><p>${key==='promos'?'Действующие промокоды':products.filter(p=>p.kind===key).length+' товаров'} · CSV для Taptop</p></div>${pict('fileText')}</div><input class="feed-url" value="${esc(url)}" readonly aria-label="Ссылка ${title}"><div class="feed-actions"><button class="btn primary" data-copy="${esc(url)}">${pict('copy')}Скопировать ссылку</button><a class="btn secondary" href="${esc(url)}" target="_blank" rel="noopener">${pict('download')}Открыть CSV</a></div></section>`;}).join('');
 }
 $('#feed-links').addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(b){try{await navigator.clipboard.writeText(b.dataset.copy);toast('Ссылка скопирована');}catch{const input=b.closest('.feed-card').querySelector('input');input.select();toast('Ссылка выделена. Нажмите ⌘C для копирования.');}}});
-$('#login-dialog').addEventListener('cancel',e=>e.preventDefault());$('#login-form').addEventListener('submit',async e=>{e.preventDefault();try{await api('/api/login',{method:'POST',body:JSON.stringify({password:e.target.elements.password.value})});e.target.reset();$('#login-dialog').close();load();}catch(err){$('#login-error').textContent=err.message;}});
+$('#login-dialog').addEventListener('cancel',e=>e.preventDefault());$('#login-form').addEventListener('submit',async e=>{e.preventDefault();try{const data=await api('/api/login',{method:'POST',body:JSON.stringify({password:e.target.elements.password.value})});sessionToken=data.token;sessionStorage.setItem(SESSION_KEY,sessionToken);e.target.reset();$('#login-error').textContent='';$('#login-dialog').close();load();}catch(err){$('#login-error').textContent=err.message;}});
 load();

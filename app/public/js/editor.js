@@ -138,9 +138,18 @@ async function uploadFiles(files){
  if(files.some(f=>f.size>8*1024*1024||!['image/jpeg','image/png','image/webp'].includes(f.type))){photoFeedback('Выберите JPG, PNG или WebP до 8 МБ',true);return;}
  const targets=contentRows();if(files.length+targets[0].photos.length>50){photoFeedback('Не более 50 фотографий в галерее',true);return;}
  uploading=true;const controls=[...form.elements],states=controls.map(c=>c.disabled);controls.forEach(c=>c.disabled=true);let count=0;
- try{for(const [i,file]of files.entries()){photoFeedback(`Сжимаем и загружаем фото ${i+1} из ${files.length}…`);const data=await new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(r.result.split(',')[1]);r.onerror=()=>reject(new Error('Не удалось прочитать файл'));r.readAsDataURL(file);});const {url}=await api('/api/photos',{method:'POST',body:JSON.stringify({data})});targets.forEach(v=>v.photos.push(url));count++;renderPhotos();}photoFeedback(`Добавлено фото: ${count}`);}
+ try{for(const [i,file]of files.entries()){photoFeedback(`Сжимаем и загружаем фото ${i+1} из ${files.length}…`);const data=await compressForUpload(file);const {url}=await api('/api/photos',{method:'POST',body:JSON.stringify({data})});targets.forEach(v=>v.photos.push(url));count++;renderPhotos();}photoFeedback(`Добавлено фото: ${count}`);}
  catch(e){photoFeedback(`${e.message}${count?`. Уже добавлено: ${count}`:''}`,true);}
  finally{controls.forEach((c,i)=>c.disabled=states[i]);uploading=false;if(count)dirty();$('#photo-files').value='';}
+}
+async function compressForUpload(file){
+ const image=await createImageBitmap(file,{imageOrientation:'from-image'});
+ const scale=Math.min(1,4000/Math.max(image.width,image.height));
+ const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(image.width*scale));canvas.height=Math.max(1,Math.round(image.height*scale));
+ const context=canvas.getContext('2d',{alpha:false});context.drawImage(image,0,0,canvas.width,canvas.height);image.close();
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.8));if(!blob)throw new Error('Не удалось сжать фотографию');
+ if(blob.size>6*1024*1024)throw new Error('После сжатия фотография больше 6 МБ');
+ return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result.split(',')[1]);reader.onerror=()=>reject(new Error('Не удалось прочитать фотографию'));reader.readAsDataURL(blob);});
 }
 function closeEditor(){if(busy())return;if(signature(draft)!==original){confirmDiscard(()=>{$('#editor').close();draft=null;});return;}$('#editor').close();draft=null;}
 $('#close-editor').addEventListener('click',closeEditor);$('#cancel-editor').addEventListener('click',closeEditor);$('#editor').addEventListener('cancel',e=>{e.preventDefault();closeEditor();});
