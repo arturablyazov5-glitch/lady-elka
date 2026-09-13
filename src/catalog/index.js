@@ -222,6 +222,59 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
   card.setAttribute('data-photos-ready','');
 }
 
+// «Ещё фото» у декора устроено проще, чем у ёлок: категорий-ракурсов нет, просто список
+// фотографий ТЕКУЩЕГО выбранного варианта (тип+размер). Слоты в Taptop могут быть помечены
+// data-cat (например, скопировали блок с ёлки) — здесь это неважно, любой найденный слот
+// используется как шаблон и клонируется, если фото больше, чем слотов.
+function renderDecorExtraPhotos(card, photos) {
+  card.querySelectorAll(`${EXTRA_IMG_WRAP_SEL}[data-extra-photo-dynamic]`).forEach(w => w.remove());
+  const wraps = Array.from(card.querySelectorAll(EXTRA_IMG_WRAP_SEL));
+  if (!wraps.length) return;
+
+  const list = (photos || []).filter(Boolean);
+  if (list.length > wraps.length) {
+    const template = wraps[wraps.length - 1];
+    let lastEl = template;
+    for (let i = 0; i < list.length - wraps.length; i++) {
+      const clone = template.cloneNode(true);
+      clone.setAttribute('data-extra-photo-dynamic', '1');
+      clone.removeAttribute('hidden');
+      clone.style.removeProperty('display');
+      const img = clone.querySelector('img');
+      if (img) { img.removeAttribute('src'); img.removeAttribute('data-origin-src'); img.removeAttribute('srcset'); }
+      lastEl.insertAdjacentElement('afterend', clone);
+      lastEl = clone;
+      wraps.push(clone);
+    }
+  }
+
+  wraps.forEach((w, i) => {
+    const url = list[i] || '';
+    if (url) {
+      const img = ensureImg(w);
+      img.removeAttribute('srcset');
+      img.setAttribute('src', url);
+      img.setAttribute('data-origin-src', url);
+      watchImageLoading(w, img);
+      w.style.display = '';
+    } else {
+      w.style.display = 'none';
+    }
+  });
+
+  const anyShown = wraps.some(w => w.style.display !== 'none');
+  let section = card.querySelector('[data-extra-photos]');
+  if (!section) {
+    section = wraps[0].closest('.dop__img__cms');
+    while (section && section.parentElement) {
+      const up = section.parentElement.closest('.dop__img__cms');
+      if (!up) break;
+      section = up;
+    }
+  }
+  if (section) section.style.display = anyShown ? '' : 'none';
+}
+
 
 // === ВСПОМОГАТЕЛЬНОЕ для «псевдо-селектов»
 const setText = (el, txt) => { (el?.querySelector?.('.text-block-wrap-div')||el).textContent = txt; };
@@ -446,11 +499,15 @@ function initDecorCard(card, entry, titleEl, titleNow) {
   const types = [...new Set(allVariants.map(v => String(v.category || '').trim()).filter(Boolean))];
 
   const setImage = variant => {
-    const photo = variant?.photos?.[0] || entry.photos?.[0] || '';
-    if (!image || !photo) return;
-    image.src = photo;
-    image.setAttribute('data-origin-src', photo);
-    image.classList.add('can-zoom');
+    const photos = (variant?.photos?.length ? variant.photos : entry.photos) || [];
+    const photo = photos[0] || '';
+    if (image && photo) {
+      image.src = photo;
+      image.setAttribute('data-origin-src', photo);
+      image.classList.add('can-zoom');
+    }
+    // Первое фото уже ушло в основную картинку — остальные показываем в «Ещё фото».
+    renderDecorExtraPhotos(card, photos.slice(1));
   };
   const setDescription = variant => {
     if (!descriptionEl) return;
