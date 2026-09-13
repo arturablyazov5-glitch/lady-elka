@@ -126,6 +126,9 @@ function ensureImg(w){
     
     
 function refreshExtraPhotos(card, catKey, photoList, showAll){
+  // убираем слоты, добавленные динамически на предыдущий вызов (иначе будут копиться)
+  card.querySelectorAll(`${EXTRA_IMG_WRAP_SEL}[data-extra-photo-dynamic]`).forEach(w => w.remove());
+
   const wraps = Array.from(card.querySelectorAll(EXTRA_IMG_WRAP_SEL));
   if(!wraps.length) return;
 
@@ -135,6 +138,30 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
   const hasDataCat = wraps.some(w => w.hasAttribute('data-cat'));
   const catSlots  = hasDataCat ? wraps.filter(w => w.hasAttribute('data-cat')) : wraps.slice(0, 4);
   const csvSlots  = hasDataCat ? wraps.filter(w => !w.hasAttribute('data-cat')) : wraps.slice(4);
+
+  // Если фото из таблицы больше, чем готовых слотов-заглушек в Taptop — донаращиваем
+  // недостающие слоты, клонируя последний CSV-слот (заглушку), как на GitHub.
+  const urlsForCount = (photoList || []).filter(Boolean);
+  if (csvSlots.length && urlsForCount.length > csvSlots.length){
+    const template = csvSlots[csvSlots.length - 1];
+    let lastEl = template;
+    const extraCount = urlsForCount.length - csvSlots.length;
+    for (let i = 0; i < extraCount; i++){
+      const clone = template.cloneNode(true);
+      clone.setAttribute('data-extra-photo-dynamic', '1');
+      clone.removeAttribute('hidden');
+      clone.style.removeProperty('display');
+      const img = clone.querySelector('img');
+      if (img){
+        img.removeAttribute('src');
+        img.removeAttribute('data-origin-src');
+        img.removeAttribute('srcset');
+      }
+      lastEl.insertAdjacentElement('afterend', clone);
+      lastEl = clone;
+      csvSlots.push(clone);
+    }
+  }
 
   // есть ли в слоте реальное фото (а не заглушка/пусто)
   const slotHasPhoto = w => {
@@ -161,7 +188,7 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
   }
 
   // 2) CSV-слоты: заполняем ссылками, лишние скрываем
-  const urls = (photoList || []).slice(0, csvSlots.length);
+  const urls = urlsForCount.slice(0, csvSlots.length);
   csvSlots.forEach((w, i) => {
     const url = urls[i] || '';
     if (url){
@@ -180,7 +207,7 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
   // Надёжный хук — атрибут data-extra-photos на блоке «Ещё фото» (проставь в Taptop).
   // Fallback (если атрибута нет): поднимаемся до самого верхнего .dop__img__cms —
   // он содержит и заголовок, и слоты (их бывает два вложенных).
-  const anyShown = wraps.some(w => w.style.display !== 'none');
+  const anyShown = catSlots.concat(csvSlots).some(w => w.style.display !== 'none');
   let section = card.querySelector('[data-extra-photos]');
   if (!section) {
     section = wraps[0].closest('.dop__img__cms');
