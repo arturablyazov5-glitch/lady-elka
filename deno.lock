@@ -165,7 +165,8 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
-        "npm:esbuild@0.24"
+        "npm:esbuild@0.24",
+        "npm:sharp@~0.35.4"
       ]
     }
   }

@@ -111,7 +111,10 @@ function calculatePrice(base: number, settings: any) {
   return {price, offer: settings.discount_pct ? Math.ceil(price * 100 / (100 - settings.discount_pct)) : 0, discount_pct: -settings.discount_pct};
 }
 function resolveType(v: any, settings: any) { return settings.types.find((t: any) => t.id === v.type_id) || settings.types.find((t: any) => t.name === v.category || t.aliases?.includes(v.category)); }
-function pricedProduct(p: any, settings: any) { return {...p, variants: p.variants.map((v: any) => { const base = v.base_price ?? v.price; const type = p.kind === 'trees' ? resolveType(v, settings) : null; return {...v, base_price: base, ...calculatePrice(base, settings), ...(type ? {type_id: type.id, category: type.name} : {})}; })}; }
+// Тип (Зелёная/С освещением/Заснеженная и т.п.) резолвим и для декора тоже — у декора он
+// не обязателен ("Без типа"), но если назначен, фронтенд должен получить актуальное имя из
+// настроек (см. exportCSV: у декора теперь тоже есть колонка category).
+function pricedProduct(p: any, settings: any) { return {...p, variants: p.variants.map((v: any) => { const base = v.base_price ?? v.price; const type = resolveType(v, settings); return {...v, base_price: base, ...calculatePrice(base, settings), ...(type ? {type_id: type.id, category: type.name} : {})}; })}; }
 
 function validateSettings(s: any) {
   if (!s || !Number.isFinite(s.discount_pct) || s.discount_pct < 0 || s.discount_pct >= 100) throw new Error('Скидка должна быть от 0 до 99%');
@@ -167,7 +170,10 @@ function promoUsage(orders: any[]) {
 
 const cell = (value: unknown) => `"${String(value ?? '').replaceAll('"', '""')}"`;
 function exportCSV(products: any[], kind: 'trees' | 'decor') {
-  const columns = kind === 'trees' ? ['id','title','category','height_cm','price','diameter_cm','branches','offer','discount_pct','photos','active','description'] : ['id','title','price','variants','photos','active','description'];
+  // У декора колонка category появилась не сразу — фронтенд (src/catalog/sheets.js) её
+  // всегда искал (для селектора «Тип» у декора вроде венков), но раньше она не экспортировалась,
+  // и v.category всегда приходил пустым — второй селект никогда не появлялся.
+  const columns = kind === 'trees' ? ['id','title','category','height_cm','price','diameter_cm','branches','offer','discount_pct','photos','active','description'] : ['id','title','category','price','variants','photos','active','description'];
   return [columns.map(cell).join(','), ...products.filter(p => p.kind === kind).flatMap(p => p.variants.map((v: any) => columns.map(h => cell(h === 'id' ? p.sku : h === 'title' ? p.title : h === 'active' ? (v.active ? 'TRUE' : 'FALSE') : h === 'photos' ? v.photos.join(' | ') : v[h])).join(',')))].join('\r\n') + '\r\n';
 }
 function exportPromoCSV(promos: any[]) { return [['promocode','Комментарий','ruble-offer','percent-offer','gift-offer'].map(cell).join(','), ...promos.filter(p => p.active).map(p => [p.code,p.comment,p.rub || 0,p.pct || 0,p.gift ? 'Сумка для хранения' : ''].map(cell).join(','))].join('\r\n') + '\r\n'; }
