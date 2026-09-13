@@ -18,6 +18,18 @@ const typesForProduct=()=>{
  const isThuja=draft?.kind==='trees'&&draft.variants.some(v=>v.type_id==='thuja'||/туя|туи/i.test(v.category));
  return catalogSettings.types.filter(t=>isThuja||!(t.id==='thuja'||/туя|туи/i.test(t.name)));
 };
+// «Без типа» — служебная группа для старого декора без назначенного типа. Как только у товара
+// появляется хоть один реальный тип, держать рядом отдельную вкладку «Без типа» нельзя —
+// переносим её варианты в этот реальный тип (тип у декора может быть, просто не вперемешку
+// с «Без типа»). Чинит и уже испорченные раньше товары при открытии в редакторе.
+function normalizeDecorGroups(){
+ if(!draft||draft.kind!=='decor')return;
+ const groups=getGroups(draft);
+ if(groups.length<2||!groups.includes('Без типа'))return;
+ const realName=groups.find(g=>g!=='Без типа');
+ const type=catalogSettings.types.find(t=>t.name===realName);
+ groupVariants(draft,'Без типа').forEach(v=>{v.category=realName;if(type)v.type_id=type.id;});
+}
 $('#undo-edit').addEventListener('click',()=>{if(lastUndo){lastUndo();dirty();renderGroups();}});
 window.openEditor=function(product,seed=null){
  if(product) draft=structuredClone(product);
@@ -26,6 +38,7 @@ window.openEditor=function(product,seed=null){
   draft={id:'',sku:'',title:'',kind:kind==='decor'?'decor':'trees',variants:[blankVariant(kind==='trees'||kind==='thuja')]};
   const type=catalogSettings.types.find(t=>kind==='thuja'?t.id==='thuja':t.id==='green')||catalogSettings.types[0];draft.variants[0].category=type.name;draft.variants[0].type_id=type.id;
  }
+ normalizeDecorGroups();
  panelMode='sizes';activeGroup=getGroups(draft)[0];contentKey='';lastUndo=null;original=signature(draft);
  const kindSelect=form.elements.kind;kindSelect.options[0].textContent='Ёлки';if(!kindSelect.querySelector('option[value="thuja"]'))kindSelect.querySelector('option[value="decor"]').insertAdjacentHTML('beforebegin','<option value="thuja">Туи</option>');
  const selectedSection=product?section(product):seed?section(seed):kind;kindSelect.value=selectedSection==='thuja'?'thuja':selectedSection==='decor'?'decor':'trees';
@@ -105,7 +118,7 @@ function groupDialog(){
  $('#group-dialog-title').textContent='Добавить тип';$('#group-name').innerHTML=available.map(t=>`<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');$('#group-error').textContent='';$('#group-form button[type="submit"]').textContent='Добавить';$('#group-dialog').showModal();$('#group-name').focus();
 }
 $('#add-group').addEventListener('click',groupDialog);$('#cancel-group').addEventListener('click',()=>$('#group-dialog').close());
-$('#group-form').addEventListener('submit',e=>{e.preventDefault();const type=catalogSettings.types.find(t=>t.id===$('#group-name').value);if(!type||getGroups(draft).includes(type.name))return;const v=blankVariant();v.category=type.name;v.type_id=type.id;draft.variants.push(v);activeGroup=type.name;panelMode='sizes';contentKey='';dirty();renderGroups();$('#group-dialog').close();});
+$('#group-form').addEventListener('submit',e=>{e.preventDefault();const type=catalogSettings.types.find(t=>t.id===$('#group-name').value);if(!type||getGroups(draft).includes(type.name))return;const v=blankVariant();v.category=type.name;v.type_id=type.id;draft.variants.push(v);if(draft.kind==='decor'){groupVariants(draft,'Без типа').forEach(bv=>{bv.category=type.name;bv.type_id=type.id;});}activeGroup=type.name;panelMode='sizes';contentKey='';dirty();renderGroups();$('#group-dialog').close();});
 function photoFeedback(s,error=false){$('#photo-feedback').textContent=s;$('#photo-feedback').classList.toggle('error',error);}
 function updatePhotos(photos){setContent(contentRows(),'photos',photos);dirty();renderPhotos();}
 function movePhoto(from,to){if(from===to)return;const photos=[...contentRows()[0].photos];const [p]=photos.splice(from,1);photos.splice(to,0,p);updatePhotos(photos);photoFeedback('Порядок фотографий изменён');}
