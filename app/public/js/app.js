@@ -1,4 +1,13 @@
 'use strict';
+// Shared pill-tab component used by catalog, promos and orders.
+function createTabComponent(root,{ariaLabel,items,selected,onChange}){
+ let current=selected??items[0]?.value;root.classList.add('finder-mode-switch');root.setAttribute('role','tablist');if(ariaLabel)root.setAttribute('aria-label',ariaLabel);
+ const render=()=>{root.innerHTML=items.map(item=>`<button type="button" class="finder-mode-btn ${item.value===current?'selected':''}" role="tab" aria-selected="${item.value===current}" data-tab-value="${item.value}">${item.label}${item.count==null?'':` <span>${item.count}</span>`}</button>`).join('');};
+ const select=value=>{if(!items.some(item=>item.value===value))return;current=value;render();onChange?.(value);};
+ root.addEventListener('click',e=>{const b=e.target.closest('[data-tab-value]');if(b)select(b.dataset.tabValue);});
+ root.addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;const bs=[...root.querySelectorAll('[data-tab-value]')],i=bs.indexOf(document.activeElement);if(i<0)return;e.preventDefault();const n=e.key==='Home'?0:e.key==='End'?bs.length-1:(i+(e.key==='ArrowRight'?1:-1)+bs.length)%bs.length;select(bs[n].dataset.tabValue);root.querySelectorAll('[data-tab-value]')[n].focus();});
+ render();return{setItems(next){items=next;render();},select,get value(){return current;}};
+}
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const rub=n=>Number(n).toLocaleString('ru-RU')+' ₽';
@@ -44,7 +53,7 @@ async function load(){
 }
 function render(){
  $('#nav-count').textContent=products.length;
- for(const k of ['all','trees','thuja','decor']) $(`#count-${k}`).textContent=products.filter(p=>k==='all'||section(p)===k).length;
+ catalogTabs.setItems(['all','trees','thuja','decor'].map(k=>({value:k,label:{all:'Все',trees:'Ёлки',thuja:'Туи',decor:'Декор'}[k],count:products.filter(p=>k==='all'||section(p)===k).length})));
  const q=normalizeSearch($('#search').value),visibility=$('#visibility').value;
  const list=products.filter(p=>(kind==='all'||section(p)===kind)&&(visibility==='all'||(visibility==='active'?p.variants.some(v=>v.active):p.variants.every(v=>!v.active)))).map(p=>({p,score:q?searchScore(q,p):0})).filter(x=>!q||x.score>0).sort((a,b)=>q?(b.score-a.score||a.p.title.localeCompare(b.p.title,'ru')):0).map(x=>x.p);
  $('#result-caption').textContent=`Товаров: ${list.length} из ${products.length}`;
@@ -56,11 +65,11 @@ function render(){
  }).join('');
  $('#product-list').querySelectorAll('img').forEach(img=>img.addEventListener('error',()=>{img.parentElement.innerHTML=pict('image');},{once:true}));
 }
-function navigate(page){const current=['catalog','promos','integration','settings'].includes(page)?page:'catalog';for(const key of ['catalog','promos','integration','settings']){const el=$(`#${key}-page`);if(el){el.hidden=current!==key;el.classList.toggle('active',current===key);}}$$('.side-tabs [data-nav]').forEach(a=>{if(a.dataset.nav===current)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.title=`${{catalog:'Каталог',promos:'Промокоды',integration:'Подключение сайта',settings:'Настройки'}[current]} — Lady Elka`;window.dispatchEvent(new CustomEvent('page-shown',{detail:current}));}
+function navigate(page){const current=['catalog','orders','promos','integration','settings'].includes(page)?page:'catalog';for(const key of ['catalog','orders','promos','integration','settings']){const el=$(`#${key}-page`);if(el){el.hidden=current!==key;el.classList.toggle('active',current===key);}}$$('.side-tabs [data-nav]').forEach(a=>{if(a.dataset.nav===current)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.title=`${{catalog:'Каталог',orders:'Заказы',promos:'Промокоды',integration:'Подключение сайта',settings:'Настройки'}[current]} — Lady Elka`;window.dispatchEvent(new CustomEvent('page-shown',{detail:current}));}
 window.addEventListener('hashchange',()=>{navigate(location.hash.slice(1));window.scrollTo(0,0);});navigate(location.hash.slice(1));
-$$('[data-kind]').forEach(b=>b.addEventListener('click',()=>{kind=b.dataset.kind;$$('[data-kind]').forEach(t=>{t.classList.toggle('selected',t===b);t.setAttribute('aria-selected',String(t===b));});render();}));
+const catalogTabs=createTabComponent($('#catalog-tabs'),{ariaLabel:'Категории товаров',selected:kind,items:['all','trees','thuja','decor'].map(k=>({value:k,label:{all:'Все',trees:'Ёлки',thuja:'Туи',decor:'Декор'}[k],count:0})),onChange:value=>{kind=value;render();}});
 $('#search').addEventListener('input',render);$('#visibility').addEventListener('change',render);$('#refresh').addEventListener('click',load);
-$('#reset-filters').addEventListener('click',()=>{$('#search').value='';$('#visibility').value='all';$('[data-kind="all"]').click();});
+$('#reset-filters').addEventListener('click',()=>{$('#search').value='';$('#visibility').value='all';catalogTabs.select('all');});
 $('#product-list').addEventListener('click',e=>{const row=e.target.closest('.product-row[data-edit]');if(row)openEditor(products.find(p=>p.id===row.dataset.edit));});
 $('#product-list').addEventListener('keydown',e=>{if(e.key!=='Enter'&&e.key!==' ')return;const row=e.target.closest('.product-row[data-edit]');if(!row||e.target.closest('button'))return;e.preventDefault();openEditor(products.find(p=>p.id===row.dataset.edit));});
 function renderFeeds(){

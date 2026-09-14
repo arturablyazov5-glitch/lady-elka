@@ -19,7 +19,7 @@ function visible(){
  return list.sort(order[promoSort]);
 }
 function renderPromos(){
- for(const key of ['all','live','off']) $(`#promo-count-${key}`).textContent=promos.filter(p=>key==='all'||promoStatus(p)===key).length;
+ promoTabs.setItems(['all','live','off'].map(key=>({value:key,label:{all:'Все',live:'Работают',off:'Выключены'}[key],count:promos.filter(p=>key==='all'||promoStatus(p)===key).length})));
  $('#nav-promo-count').textContent=promos.filter(p=>p.active).length;
  const list=visible();
  $('#promo-caption').textContent=promos.length?`Промокодов: ${list.length} из ${promos.length}`:'Промокодов пока нет';
@@ -96,8 +96,8 @@ $('#add-promo').addEventListener('click',()=>openPromo());
 $('#promo-refresh').addEventListener('click',()=>loadPromos(true));
 $('#promo-search').addEventListener('input',renderPromos);
 $('#promo-sort').addEventListener('change',e=>{promoSort=e.target.value;renderPromos();});
-$$('[data-promo-filter]').forEach(b=>b.addEventListener('click',()=>{promoFilter=b.dataset.promoFilter;$$('[data-promo-filter]').forEach(t=>{t.classList.toggle('selected',t===b);t.setAttribute('aria-selected',String(t===b));});renderPromos();}));
-$('#promo-reset-filters').addEventListener('click',()=>{$('#promo-search').value='';$('[data-promo-filter="all"]').click();});
+const promoTabs=createTabComponent($('#promo-tabs'),{ariaLabel:'Состояние промокодов',selected:promoFilter,items:['all','live','off'].map(key=>({value:key,label:{all:'Все',live:'Работают',off:'Выключены'}[key],count:0})),onChange:value=>{promoFilter=value;renderPromos();}});
+$('#promo-reset-filters').addEventListener('click',()=>{$('#promo-search').value='';promoTabs.select('all');});
 $('#promo-list').addEventListener('click',async e=>{
  const copyCode=e.target.closest('[data-copy-code]');
  if(copyCode){try{await navigator.clipboard.writeText(copyCode.dataset.copyCode);toast(`Промокод ${copyCode.dataset.copyCode} скопирован`);}catch{toast('Не удалось скопировать промокод');}return;}
