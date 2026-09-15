@@ -1,3 +1,4 @@
+import {databaseBilling} from '../_shared/billing-store.mjs';
 const SUPABASE_URL = (Deno.env.get('SUPABASE_URL') || '').replace(/\/$/, '');
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || '';
 const ADMIN_PASSWORD = Deno.env.get('CATALOG_ADMIN_PASSWORD') || '';
@@ -101,6 +102,8 @@ async function db(path: string, options: RequestInit = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+const billing=databaseBilling(db,(key: string)=>Deno.env.get(key));
+
 async function listProducts() { return (await db('le_catalog_products?select=payload,revision,updated_at&order=created_at.asc,id.asc')).map((r: Json) => ({...(r.payload as Json), revision: r.revision, updated_at: r.updated_at})); }
 async function getSettings() { const [row] = await db('le_catalog_settings?id=eq.1&select=payload,revision,updated_at'); if (!row) throw new Error('Не созданы настройки каталога'); return {...row.payload, revision: row.revision, updated_at: row.updated_at}; }
 async function listPromos() { return (await db('le_promo_codes?select=id,code,comment,rub,pct,gift,active,revision,created_at,updated_at&order=created_at.desc')).map((r: Json) => ({...r, rub: Number(r.rub), pct: Number(r.pct)})); }
@@ -203,6 +206,8 @@ Deno.serve(async req => {
       const [raw, settings] = await Promise.all([listProducts(), getSettings()]);
       return response(req, 200, exportCSV(raw.map((p: any) => pricedProduct(p, settings)), kind), 'text/csv; charset=utf-8', true);
     }
+    if(route==='/billing-webhook' && req.method==='POST'){const b=await jsonBody(req);return response(req,200,await billing.webhook(b.object?.id));}
+    if(route==='/billing-renewal' && req.method==='POST'){const secret=Deno.env.get('LE_RENEWAL_SECRET');if(!secret||req.headers.get('x-renewal-secret')!==secret)return response(req,401,{error:'Нет доступа'});return response(req,200,await billing.renew());}
     if (!route.startsWith('/api/')) return response(req, 404, {error: 'Не найдено'});
     if (!['GET', 'HEAD'].includes(req.method) && req.headers.get('x-catalog-request') !== '1') return response(req, 403, {error: 'Недопустимый запрос'});
     if (route === '/api/login' && req.method === 'POST') {
@@ -211,6 +216,7 @@ Deno.serve(async req => {
       return response(req, 200, {ok: true, token: await issueSession()});
     }
     if (!(await validSession(req))) return response(req, 401, {error: 'Войдите для управления каталогом'});
+    if(route.startsWith('/api/billing/'))return response(req,200,await billing.handle(route.split('/').pop(),req.method,req.method==='POST'?await jsonBody(req):{}));
     if (route === '/api/catalog' && req.method === 'GET') { const [raw, settings] = await Promise.all([listProducts(), getSettings()]); return response(req, 200, {products: raw.map((p: any) => pricedProduct(p, settings)), settings, database: 'Supabase', origin: `${url.origin}/functions/v1/catalog`}); }
     if (route === '/api/photos' && req.method === 'POST') { const body = await jsonBody(req); if (typeof body.data !== 'string') return response(req, 400, {error: 'Выберите фотографию'}); const photoUrl = await uploadWebp(body.data); return response(req, 201, {url: photoUrl, format: 'webp', quality: 80}); }
     if (route === '/api/settings' && req.method === 'PUT') {

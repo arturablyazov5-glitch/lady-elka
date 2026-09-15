@@ -1,4 +1,5 @@
 import {pricedProduct,validateSettings,resolveType} from '../public/js/pricing.js';
+import {billing} from './billing.mjs';
 import {compressPhoto} from './photos.mjs';
 import http from 'node:http';
 import fs from 'node:fs/promises';
@@ -63,6 +64,7 @@ const server=http.createServer(async(req,res)=>{
   if(route.startsWith('/api/')){
    const token=req.headers.cookie?.match(/(?:^|;\s*)le_session=([^;]+)/)?.[1];
    if(password && !(sessions.get(token)>Date.now())) return send(res,401,{error:'Войдите для управления каталогом'});
+   if(route.startsWith('/api/billing/'))return send(res,200,await billing.handle(route.split('/').pop(),req.method,req.method==='POST'?await body(req):{}));
    if(route==='/api/photos' && req.method==='POST'){
     const b=await body(req,12e6);if(typeof b.data!=='string') return send(res,400,{error:'Выберите фотографию'});
     const bytes=Buffer.from(b.data,'base64');if(bytes.length>8*1024*1024 || bytes.length<12) return send(res,400,{error:'Размер фото должен быть от 12 байт до 8 МБ'});
@@ -136,4 +138,6 @@ const server=http.createServer(async(req,res)=>{
   const data=await fs.readFile(file);res.writeHead(200,{'Content-Type':mime+'; charset=utf-8','X-Content-Type-Options':'nosniff','Cache-Control':'no-cache','Content-Security-Policy':`default-src 'self'; img-src 'self' https: http: data:; style-src 'self' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`});res.end(data);
  }catch(e){const status=e.code==='ENOENT'?404:e.status || (e instanceof TypeError?502:400);send(res,status,{error:e.code==='ENOENT'?'Не найдено':e.message});}
 });
+// Local scheduler runs only when the local server is running.
+setInterval(()=>billing.renew().catch(()=>console.error('Не удалось проверить продление Lady Elka PRO')),15*60*1000).unref();
 server.listen(port,host,()=>console.log(`Lady Elka: http://localhost:${port}/app — Supabase`));

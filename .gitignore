@@ -15,3 +15,6 @@ dist/
 
 # Supabase CLI local state
 supabase/.temp/
+
+# Private local subscription state
+app/data/billing.private.json*

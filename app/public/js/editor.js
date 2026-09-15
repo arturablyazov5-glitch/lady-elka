@@ -1,6 +1,6 @@
 import {calculatePrice} from './pricing.js';
 import {getGroups,groupName,groupVariants,sharedContent,setContent,checkDraft,parsePhotoLinks,parsePriceInput,formatPriceInput,parseUnitInput,formatUnitInput,parseCountInput,formatCountInput,sizeWord,variantWord} from './editor-model.js';
-let panelMode='sizes',activeGroup='',contentKey='',lastUndo=null,photoDragIndex=null,lightboxPhotos=[],lightboxIndex=0;
+let panelMode='sizes',activeGroup='',contentKey='',lastUndo=null,photoDragIndex=null,groupDragValue=null,lightboxPhotos=[],lightboxIndex=0,groupTabs;
 const form=$('#product-form');
 const busy=()=>saving||uploading;
 const visibilityControl=document.createElement('label');
@@ -9,6 +9,14 @@ visibilityControl.innerHTML='<input id="product-visibility-toggle" type="checkbo
 $('#product-visibility').replaceWith(visibilityControl);
 const rows=()=>groupVariants(draft,activeGroup);
 const contentRows=()=>{const vs=rows();return sharedContent(vs)?vs:[vs.find(v=>v.key===contentKey)||vs[0]];};
+function moveGroup(draggedName,targetName){
+ const groups=getGroups(draft),from=groups.indexOf(draggedName),to=groups.indexOf(targetName);
+ if(from<0||to<0||from===to)return;
+ const ordered=[...groups];ordered.splice(from,1);ordered.splice(to,0,draggedName);
+ const variantsByGroup=new Map(groups.map(name=>[name,groupVariants(draft,name)]));
+ draft.variants=ordered.flatMap(name=>variantsByGroup.get(name)||[]);
+ activeGroup=draggedName;dirty();renderGroups();
+}
 const blankVariant=(active=false)=>({key:crypto.randomUUID(),category:'Зелёная',height_cm:0,base_price:0,price:0,diameter_cm:0,branches:0,offer:0,discount_pct:0,description:'',photos:[],active,variants:'',source_price:0});
 const sizeLabel=v=>draft.kind==='decor'?(v.variants&&v.variants!=='-'?v.variants:'Без размера'):`${v.height_cm||'Новый размер'}${v.height_cm?' см':''}`;
 function feedback(message,error=false){$('#save-status').textContent=message;$('#save-status').classList.toggle('error',error);}
@@ -31,6 +39,10 @@ function normalizeDecorGroups(){
  groupVariants(draft,'Без типа').forEach(v=>{v.category=realName;if(type)v.type_id=type.id;});
 }
 $('#undo-edit').addEventListener('click',()=>{if(lastUndo){lastUndo();dirty();renderGroups();}});
+$('#group-tabs').addEventListener('dragstart',e=>{const tab=e.target.closest('[data-tab-value]');if(!tab)return;groupDragValue=tab.dataset.tabValue;tab.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain',groupDragValue);});
+$('#group-tabs').addEventListener('dragover',e=>{if(e.target.closest('[data-tab-value]'))e.preventDefault();});
+$('#group-tabs').addEventListener('dragend',e=>{e.target.closest('[data-tab-value]')?.classList.remove('dragging');groupDragValue=null;});
+$('#group-tabs').addEventListener('drop',e=>{const target=e.target.closest('[data-tab-value]');if(!target||!groupDragValue)return;e.preventDefault();moveGroup(groupDragValue,target.dataset.tabValue);groupDragValue=null;});
 window.openEditor=function(product,seed=null){
  if(product) draft=structuredClone(product);
  else if(seed) draft={id:'',sku:'',title:`${seed.title} (копия)`,kind:seed.kind,variants:seed.variants.map(v=>({...v,key:crypto.randomUUID()}))};
@@ -63,27 +75,14 @@ function renderGroups(){
  $('#groups-title').textContent='Типы товара';$('#groups-hint').textContent='У каждого типа — свои размеры, цены и фотографии.';
  $('#add-group').hidden=false;$('#group-tabs').hidden=false;
  $('#product-visibility-toggle').checked=draft.variants.some(v=>v.active);
- $('#group-tabs').innerHTML=groups.map((name,i)=>`<button type="button" role="tab" id="group-tab-${i}" aria-controls="group-panel" aria-selected="${name===activeGroup}" tabindex="${name===activeGroup?'0':'-1'}" data-group="${esc(name)}" class="group-tab ${name===activeGroup?'selected':''}">${esc(name)}<span>${groupVariants(draft,name).length}</span></button>`).join('');
+ const groupItems=groups.map(name=>({value:name,label:name,count:groupVariants(draft,name).length}));if(!groupTabs)groupTabs=createTabComponent($('#group-tabs'),{ariaLabel:'Типы товара',selected:activeGroup,items:groupItems,onChange:selectGroup});else groupTabs.setItems(groupItems,activeGroup);$('#group-tabs').querySelectorAll('[data-tab-value]').forEach(button=>{button.draggable=true;});
  const vs=rows(),common=sharedContent(vs),media=contentRows()[0];
- $('#variants').innerHTML=`${groups.length>1?`<div class="group-reorder"><span>Порядок вкладок: переместить «${esc(activeGroup)}»</span><button type="button" class="icon-btn" data-move-group="-1" ${groups.indexOf(activeGroup)===0?'disabled':''} title="Левее" aria-label="Переместить «${esc(activeGroup)}» левее">${pict('arrowLeft')}</button><button type="button" class="icon-btn" data-move-group="1" ${groups.indexOf(activeGroup)===groups.length-1?'disabled':''} title="Правее" aria-label="Переместить «${esc(activeGroup)}» правее">${pict('arrowRight')}</button></div>`:''}<section class="group-panel" id="group-panel" role="tabpanel" ${draft.kind==='trees'?`aria-labelledby="group-tab-${groups.indexOf(activeGroup)}"`:'aria-label="Размеры и варианты"'}><div class="group-heading"><div><h3>${esc(activeGroup)}</h3><span>${vs.length} ${draft.kind==='decor'?variantWord(vs.length):sizeWord(vs.length)}</span></div><div class="group-actions">${draft.kind==='trees'?`<label class="type-picker"><span>Тип товара</span><select id="group-type-select" aria-label="Тип товара">${typesForProduct().filter(t=>t.name===activeGroup||!getGroups(draft).includes(t.name)).map(t=>`<option value="${esc(t.id)}" ${t.name===activeGroup?'selected':''}>${esc(t.name)}</option>`).join('')}</select></label>`:''}<button type="button" class="btn secondary" id="add-size">${pict('plus')}Добавить размер</button></div></div><div class="content-tabs" role="tablist" aria-label="Содержимое типа"><button type="button" role="tab" data-mode="sizes" aria-controls="sizes-panel" aria-selected="${panelMode==='sizes'}" class="${panelMode==='sizes'?'selected':''}">Размеры и цены</button><button type="button" role="tab" data-mode="content" aria-controls="content-panel" aria-selected="${panelMode==='content'}" class="${panelMode==='content'?'selected':''}">Фото и описание</button></div><div class="size-list" id="sizes-panel" ${panelMode==='sizes'?'':'hidden'}>${vs.map(v=>`<div class="size-card" data-key="${esc(v.key)}"><div class="size-main">${draft.kind==='trees'?smallInput(v,'height_cm','Высота, см',{min:1}):`<label class="field"><span>Размер / вариант</span><input data-field="variants" value="${esc(v.variants==='-'?'':v.variants)}" placeholder="Например, 120х40х40"></label>`}${smallInput(v,'base_price','Базовая цена, ₽',{min:.01})}<div class="computed-price"><span>Цена на сайте</span><output data-price>${rub(v.price)}</output><small>Без скидки: <span data-offer>${v.offer?rub(v.offer):'—'}</span></small></div><label class="toggle-label size-visible"><span>Показывать</span><input type="checkbox" data-field="active" ${v.active?'checked':''} aria-label="Показывать ${esc(sizeLabel(v))} на сайте"></label><button type="button" class="icon-btn size-remove" data-remove="${esc(v.key)}" title="Удалить размер" aria-label="Удалить размер ${esc(sizeLabel(v))}" ${draft.variants.length===1?'disabled':''}>${pict('trash')}</button></div>${draft.kind==='trees'?`<details class="size-extra"><summary>Характеристики ${pict('chevronDown')}</summary><div class="size-extra-grid">${smallInput(v,'diameter_cm','Диаметр, см')}${smallInput(v,'branches','Количество веток')}<p class="field-hint">Цены рассчитываются из базовой цены. Общая скидка и изменение цен задаются в настройках.</p></div></details>`:''}</div>`).join('')}</div>
+ $('#variants').innerHTML=`<section class="group-panel" id="group-panel" role="tabpanel" ${draft.kind==='trees'?`aria-labelledby="group-tab-${groups.indexOf(activeGroup)}"`:'aria-label="Размеры и варианты"'}><div class="group-heading"><div><h3>${esc(activeGroup)}</h3><span>${vs.length} ${draft.kind==='decor'?variantWord(vs.length):sizeWord(vs.length)}</span></div><div id="content-tabs"></div><div class="group-actions"><button type="button" class="btn secondary" id="add-size">${pict('plus')}Добавить размер</button></div></div><div class="size-list" id="sizes-panel" ${panelMode==='sizes'?'':'hidden'}>${vs.map(v=>`<div class="size-card" data-key="${esc(v.key)}"><div class="size-main">${draft.kind==='trees'?smallInput(v,'height_cm','Высота, см',{min:1}):`<label class="field"><span>Размер / вариант</span><input data-field="variants" value="${esc(v.variants==='-'?'':v.variants)}" placeholder="Например, 120х40х40"></label>`}${smallInput(v,'base_price','Базовая цена, ₽',{min:.01})}<div class="computed-price"><span>Цена на сайте</span><output data-price>${rub(v.price)}</output><small><span data-offer>${v.offer?rub(v.offer):'—'}</span></small></div><label class="toggle-label size-visible"><span>Показывать</span><input type="checkbox" data-field="active" ${v.active?'checked':''} aria-label="Показывать ${esc(sizeLabel(v))} на сайте"></label><button type="button" class="icon-btn size-remove" data-remove="${esc(v.key)}" title="Удалить размер" aria-label="Удалить размер ${esc(sizeLabel(v))}" ${draft.variants.length===1?'disabled':''}>${pict('trash')}</button></div>${draft.kind==='trees'?`<details class="size-extra"><summary>Характеристики ${pict('chevronDown')}</summary><div class="size-extra-grid">${smallInput(v,'diameter_cm','Диаметр, см')}${smallInput(v,'branches','Количество веток')}<p class="field-hint">Цены рассчитываются из базовой цены. Общая скидка и изменение цен задаются в настройках.</p></div></details>`:''}</div>`).join('')}</div>
  <div class="group-content" id="content-panel" ${panelMode==='content'?'':'hidden'}><div class="content-heading"><h3>Описание и фотографии</h3><p>${common?(vs.length>1?'Общие для всех размеров этого типа. Изменения применятся ко всем размерам.':'Для этого варианта товара.'):'У этого типа содержимое отличается по размерам. Выберите размер для редактирования.'}</p></div>${!common?`<label class="field content-scope">Размер<select id="content-scope">${vs.map(v=>`<option value="${esc(v.key)}" ${v.key===media.key?'selected':''}>${esc(sizeLabel(v))}</option>`).join('')}</select></label>`:''}<label class="field">Описание<textarea id="group-description" rows="3" maxlength="20000" placeholder="Расскажите о товаре">${esc(media.description)}</textarea></label>
  <div class="photos-heading"><h4>Фотографии <span id="photo-count">${media.photos.length}</span></h4><p>Первое фото — обложка. Перетаскивайте фотографии, чтобы менять порядок.</p></div><div id="photo-gallery" class="photo-gallery"></div>
  <div class="photo-dropzone" id="photo-dropzone"><button class="btn primary" type="button" id="choose-photos">${pict('plus')}Добавить фотографии</button><span>Выберите файлы или перетащите их сюда</span><small>JPG, PNG, WebP · до 8 МБ · сжатие в WebP 80%</small><input type="file" id="photo-files" accept="image/jpeg,image/png,image/webp" multiple hidden></div>
  <div class="photo-url-row"><label class="field"><span>Или добавьте по ссылке</span><input id="photo-url" type="text" placeholder="https://site.ru/photo.jpg" autocomplete="off"></label><button class="btn secondary" type="button" id="add-photo-url">Добавить</button></div><p id="photo-feedback" class="photo-feedback" role="status"></p></div></section>`;
- if(draft.kind==='decor'){
-  const groupActions=$('#group-panel .group-actions');
-  if(groupActions){
-   const label=document.createElement('label');label.className='type-picker';
-   const options=typesForProduct().filter(t=>t.name===activeGroup||!groups.includes(t.name)).map(t=>`<option value="${esc(t.id)}" ${t.name===activeGroup?'selected':''}>${esc(t.name)}</option>`).join('');
-   label.innerHTML=`<span>Тип товара</span><select id="group-type-select" aria-label="Тип товара">${activeGroup==='Без типа'?'<option value="" selected>Без типа</option>':''}${options}</select>`;
-   groupActions.prepend(label);
-  }
- }
- const typeSelect=$('#group-type-select');
- if(typeSelect){
-  const options=[...typeSelect.options].map(option=>({value:option.value,label:option.textContent}));
-  typeSelect.closest('.type-picker').outerHTML=selectControl({id:'group-type-select',options,value:typeSelect.value,ariaLabel:'Тип товара',className:'type-picker'});
- }
+ createTabComponent($('#content-tabs'),{ariaLabel:'Содержимое типа',selected:panelMode,items:[{value:'sizes',label:'Размеры и цены'},{value:'content',label:'Фото и описание'}],onChange:value=>{panelMode=value;renderGroups();}});
  $('.content-heading')?.remove();
  renderPhotos();
 }
@@ -92,9 +91,7 @@ function renderPhotos(){
  $('#photo-gallery').innerHTML=media.photos.map((url,i)=>`<div class="gallery-item" draggable="true" data-photo="${i}"><button type="button" class="photo-open" data-preview="${i}" aria-label="Открыть фото ${i+1}"><img src="${esc(url)}" alt="Фото ${i+1}" draggable="false" referrerpolicy="no-referrer"></button>${i===0?'<span class="cover-badge">Обложка</span>':''}<button class="gallery-delete" type="button" data-photo-remove="${i}" title="Удалить фото" aria-label="Удалить фото ${i+1}">${pict('x')}</button><div class="gallery-actions"><button type="button" data-photo-left="${i}" ${i===0?'disabled':''} title="Переместить влево" aria-label="Переместить фото ${i+1} влево">${pict('arrowLeft')}</button><button type="button" data-photo-first="${i}" ${i===0?'disabled':''} title="Сделать обложкой" aria-label="Сделать фото ${i+1} обложкой">${pict('star')}</button><button type="button" data-photo-download="${i}" title="Скачать фото ${i+1}" aria-label="Скачать фото ${i+1}">${pict('download')}</button><button type="button" data-photo-right="${i}" ${i===media.photos.length-1?'disabled':''} title="Переместить вправо" aria-label="Переместить фото ${i+1} вправо">${pict('arrowRight')}</button></div></div>`).join('');
  $$('#photo-gallery img').forEach(img=>img.addEventListener('error',()=>{img.hidden=true;const note=document.createElement('span');note.className='photo-error';note.textContent='Фото недоступно';img.parentElement.append(note);},{once:true}));
 }
-function selectGroup(name){if(busy())return;activeGroup=name;contentKey='';renderGroups();$('#group-panel').scrollIntoView({block:'nearest'});}
-$('#group-tabs').addEventListener('click',e=>{const b=e.target.closest('[data-group]');if(b&&!busy())selectGroup(b.dataset.group);});
-$('#group-tabs').addEventListener('keydown',e=>{if(!['ArrowRight','ArrowLeft','Home','End'].includes(e.key))return;e.preventDefault();const names=getGroups(draft);const index=e.key==='Home'?0:e.key==='End'?names.length-1:(names.indexOf(activeGroup)+(e.key==='ArrowRight'?1:-1)+names.length)%names.length;selectGroup(names[index]);$('[data-group].selected').focus();});
+function selectGroup(name){if(busy())return;activeGroup=name;contentKey='';renderGroups();$('#group-panel').scrollIntoView({behavior:'smooth',block:'nearest'});}
 form.addEventListener('input',e=>{
  if(!draft||busy())return;
  if(e.target.name==='title')draft.title=e.target.value;
@@ -139,19 +136,7 @@ $('#variants').addEventListener('click',e=>{
  if(b.dataset.photoFirst!==undefined)return movePhoto(+b.dataset.photoFirst,0);
  if(b.dataset.photoLeft!==undefined)return movePhoto(+b.dataset.photoLeft,+b.dataset.photoLeft-1);
  if(b.dataset.photoRight!==undefined)return movePhoto(+b.dataset.photoRight,+b.dataset.photoRight+1);
- if(b.dataset.moveGroup)return moveGroup(activeGroup,Number(b.dataset.moveGroup));
 });
-// Порядок вкладок (типов) — это порядок, в котором их варианты идут в draft.variants:
-// getGroups просто берёт первое появление каждой группы. Чтобы поменять местами две вкладки,
-// переставляем местами их «блоки» вариантов, не трогая порядок размеров внутри каждой группы.
-function moveGroup(name,delta){
- const groups=getGroups(draft),from=groups.indexOf(name),to=from+delta;
- if(from<0||to<0||to>=groups.length)return;
- const blocks=groups.map(g=>groupVariants(draft,g));
- [blocks[from],blocks[to]]=[blocks[to],blocks[from]];
- draft.variants=blocks.flat();
- dirty();renderGroups();
-}
 function showLightbox(i){
  lightboxIndex=(i+lightboxPhotos.length)%lightboxPhotos.length;
  $('#large-photo').src=lightboxPhotos[lightboxIndex];

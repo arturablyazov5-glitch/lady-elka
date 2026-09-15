@@ -1,6 +1,6 @@
 #onboarding{width:660px;max-height:94dvh;overflow:auto}
 #onboarding .tour-art{height:336px;padding:18px;background:#f5f5f7}
-.tour-demo{width:100%;max-width:490px;background:white;border:1px solid #e8e8ed;border-radius:16px;padding:18px;box-sizing:border-box}
+.tour-demo{width:100%;max-width:490px;background:white;border-radius:16px;padding:18px;box-sizing:border-box}
 .tour-demo-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:14px;font-size:14px}
 .tour-demo-caption,.tour-demo small{font-size:11px;line-height:16px;color:#707070;font-weight:400}
 .tour-search{display:flex;align-items:center;gap:8px;padding:10px 12px;border:1px solid #b8d7f7;border-radius:10px;font-size:12px}

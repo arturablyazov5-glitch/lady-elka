@@ -27,11 +27,12 @@
  const money=n=>n.toLocaleString('ru-RU')+' ₽';
  const options=value=>Object.entries(stages).map(([k,v])=>`<option value="${k}" ${k===value?'selected':''}>${v}</option>`).join('');
  page.innerHTML=`<div class="panel-header contact-finder-heading"><div><h2>Заказы <span class="orders-pro">PRO</span></h2><p class="subtitle">От первого обращения до доставки покупателю</p></div></div>
- <section class="orders-offer"><div class="orders-offer-copy"><h3>Каждый заказ — под контролем</h3><p>Ваш ИИ-агент продаёт 24/7, а заказы попадают в CRM: от оплаты до доставки — вся работа в одном кабинете.</p><div class="orders-benefits"><span>${oi('receipt')}Заказы с сайта</span><span>${oi('users')}Работа команды</span><span>${oi('truck')}Контроль доставки</span></div></div><div class="orders-offer-action"><button class="btn primary" id="orders-upgrade">Подключить модуль ${oi('arrowRight')}</button></div></section>
+ <section class="orders-offer"><div class="orders-offer-copy"><h3>Каждый заказ — под контролем</h3><p>Ваш ИИ-агент продаёт 24/7, а заказы попадают в CRM: от оплаты до доставки — вся работа в одном кабинете.</p><div class="orders-benefits"><span>${oi('receipt')}Заказы с сайта</span><span>${oi('users')}Работа команды</span><span>${oi('truck')}Контроль доставки</span></div></div><div class="orders-offer-action"><button class="btn primary" id="orders-upgrade">Подключить PRO ${oi('arrowRight')}</button></div></section>
  <div class="orders-filters" aria-label="Фильтры заказов"></div><div class="filter-bar"><label class="search-control"><span data-icon="search"></span><input id="orders-search" type="search" placeholder="Номер, покупатель или товар" aria-label="Поиск заказов"></label></div>
  <p class="result-caption" id="orders-count" aria-live="polite"></p><div id="orders-list"></div>`;
+ joinControls('#orders-page','.orders-filters');
  const dialog=document.createElement('dialog');dialog.id='order-preview';dialog.setAttribute('aria-labelledby','order-preview-title');document.body.append(dialog);
- const upgrade=document.createElement('dialog');upgrade.id='orders-upgrade-dialog';upgrade.setAttribute('aria-labelledby','orders-upgrade-title');upgrade.innerHTML=`<div class="orders-modal-head"><div><span class="orders-pro">PRO</span><h2 id="orders-upgrade-title">Подключить «Заказы»</h2></div><button class="icon-btn" aria-label="Закрыть" data-close>${pict('x')}</button></div><div class="orders-modal-body"><p>Получайте реальные заказы с сайта и ведите их до завершения в этом кабинете.</p><ul><li>Состав заказа, покупатель и информация об оплате</li><li>Этапы обработки, ответственный и комментарии</li><li>Информация о доставке и поиск по заказам</li></ul><p>Обсудим ваш процесс работы, стоимость и сроки подключения.</p><a class="btn primary" href="https://t.me/mansurov_rafael" target="_blank" rel="noopener">Обсудить подключение в Telegram</a><small>Откроется чат. Сообщение нужно отправить самостоятельно.</small></div>`;document.body.append(upgrade);upgrade.querySelector('[data-close]').onclick=()=>upgrade.close();
+
  function render(){
   const filters=[['all','Все',orders.length],['active','В работе',orders.filter(o=>!['done','cancelled'].includes(o.stage)).length],['unpaid','Ждут оплаты',orders.filter(o=>!o.paid&&o.stage!=='cancelled').length],['done','Завершены',orders.filter(o=>o.stage==='done').length]];
   ordersTabs.setItems(filters.map(([k,t,n])=>({value:k,label:t,count:n})));
@@ -45,6 +46,6 @@
  page.addEventListener('click',ev=>{const b=ev.target.closest('button');if(!b)return;if(b.dataset.open)open(b.dataset.open);if(b.hasAttribute('data-clear')){filter='all';query='';page.querySelector('#orders-search').value='';ordersTabs.select('all');}});
  page.addEventListener('change',ev=>{const id=ev.target.dataset.stage;if(id){orders.find(o=>o.id===id).stage=ev.target.value;render();page.querySelector(`[data-stage="${id}"]`)?.focus();toast('Статус изменён в демо');}});
  page.querySelector('#orders-search').oninput=ev=>{query=ev.target.value;render();};
- page.querySelector('#orders-upgrade').onclick=()=>upgrade.showModal();
+ page.querySelector('#orders-upgrade').onclick=()=>location.hash='payment';
  icons(page);render();
 })();

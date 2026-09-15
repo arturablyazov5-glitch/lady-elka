@@ -468,10 +468,11 @@ body {
 .contact-finder-heading { align-items: flex-end; margin-bottom: 18px; }
 .contact-finder-heading .subtitle { max-width: 760px; margin-top: 3px; }
 /* Переключатель режимов «По сайту / По домену» */
-.finder-mode-switch { display: inline-flex; gap: 4px; width: fit-content; margin-bottom: 18px; padding: 4px; border: 1px solid var(--line); border-radius: var(--radius-pill); background: var(--soft); }
-.finder-mode-btn { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 0 16px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: background var(--motion-fast), color var(--motion-fast); }
+.finder-mode-switch.finder-mode-switch { display: inline-flex; flex-wrap: nowrap; gap: 3px; width: fit-content; max-width: 100%; margin-bottom: 18px; padding: 3px; border: 0; border-radius: 10px; background: #f3f3f6; white-space: nowrap; overflow-x: auto; overflow-y: hidden; scrollbar-width: none; }
+.finder-mode-switch.finder-mode-switch::-webkit-scrollbar { display: none; }
+.finder-mode-btn { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 7px; min-height: 34px; padding: 8px 12px; border: 0; border-radius: 10px; background: transparent; color: #707079; font-size: 11px; font-weight: 400; cursor: pointer; white-space: nowrap; transition: background var(--motion-fast), color var(--motion-fast), box-shadow var(--motion-fast); }
 .finder-mode-btn:hover { color: var(--text); }
-.finder-mode-btn.selected { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(15,15,20,.08); }
+.finder-mode-btn.selected { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px #0000000d; font-weight: 600; }
 @media (max-width: 920px) {
 .contact-finder-heading { align-items: flex-start; flex-direction: column; }
 }
