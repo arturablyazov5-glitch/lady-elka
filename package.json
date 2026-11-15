@@ -3,18 +3,39 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Lady Elka — интернет-магазин ёлок (Taptop + Yandex Cloud Function + Google Sheets)",
+  "description": "Lady Elka — интернет-магазин ёлок (Taptop + Supabase + Google Sheets)",
   "scripts": {
     "build": "node build.mjs",
     "watch": "node build.mjs --watch",
+    "test:catalog:proxy": "npm run build && node scripts/catalog-test-proxy.mjs",
     "dev:app": "node --watch app/server/index.mjs",
     "start:app": "node app/server/index.mjs",
-    "test:app": "node --test app/tests/*.test.mjs"
+    "test:app": "node --test app/tests/*.test.mjs",
+    "dev:storefront": "npm run build:storefront && npm run preview:storefront",
+    "build:storefront": "node storefront/build.mjs --mode=preview",
+    "build:storefront:production": "node storefront/build.mjs --mode=production",
+    "preview:storefront": "node storefront/server.mjs --mode=preview",
+    "test:storefront": "node --test storefront/tests/*.test.mjs",
+    "test:supabase:local": "node scripts/supabase-local-integration.mjs",
+    "fixture:storefront:checkout": "node storefront/tests/browser-fixture.mjs"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "esbuild": "^0.24.0"
   },
   "dependencies": {
     "sharp": "^0.35.4"
-  }
+  },
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/arturablyazov5-glitch/lady-elka.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/arturablyazov5-glitch/lady-elka/issues"
+  },
+  "homepage": "https://github.com/arturablyazov5-glitch/lady-elka#readme"
 }

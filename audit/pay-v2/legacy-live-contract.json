@@ -1,0 +1,37 @@
+{
+  "time": "2026-10-12T15:44:28.207Z",
+  "deployedPayVersion": 52,
+  "liveFrontendScript": "/f/catalog-snapshot-20261008.js",
+  "frontendEndpoint": "/functions/v1/pay",
+  "mockExecution": {
+    "status": 200,
+    "provider": "Alfa direct register.do",
+    "paykeeperCalls": 0,
+    "paymentCalls": [
+      {
+        "host": "bank.example.invalid",
+        "path": "/payment/rest/register.do",
+        "method": "POST"
+      },
+      {
+        "host": "database.example.invalid",
+        "path": "/rest/v1/payment_orders",
+        "method": "POST"
+      }
+    ],
+    "telegramStatusCallbackCalls": [
+      {
+        "host": "api.telegram.org",
+        "path": "/botsynthetic/answerCallbackQuery",
+        "method": "POST"
+      },
+      {
+        "host": "api.telegram.org",
+        "path": "/botsynthetic/editMessageReplyMarkup",
+        "method": "POST"
+      }
+    ]
+  },
+  "realPaymentsCreated": 0,
+  "realTelegramMessagesSent": 0
+}

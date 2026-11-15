@@ -1,0 +1,47 @@
+{
+  "schemaVersion": 1,
+  "id": "2026-10-01-derived-build",
+  "snapshotDate": "2026-10-01",
+  "artifactGeneratedAt": "2026-10-01T20:26:31.532Z",
+  "dataAsOf": null,
+  "source": {
+    "kind": "local-generated-build-artifact",
+    "path": "../../dist",
+    "originalFeedSource": "public Supabase feeds at the time of the earlier build (not rechecked in this task)",
+    "sourceFiles": {
+      "buildReport": "b892388dfe59181a06f86c6590235d57c9ba8fcb8eec6b243702a8d381c19684",
+      "productPages": {
+        "count": 42,
+        "sha256": "35f6522ed8f987372307ac27826300e3c82dab5332a8ebf1d603ed8349fe8d90"
+      }
+    }
+  },
+  "freshness": "unknown",
+  "productionReady": false,
+  "limitations": [
+    "Extracted from generated product-page JSON; the original raw feed rows were not preserved.",
+    "Promotions feed is absent from all saved local build inputs.",
+    "Prices are not verified current and must not be treated as production prices.",
+    "External Supabase gallery images had no saved local files and were explicitly excluded; local primary and gallery images are retained. Full gallery coverage remains unverified."
+  ],
+  "feeds": {
+    "trees": {
+      "path": "trees.csv",
+      "sha256": "e236331c72adf5f6faf778d71639b3f30b3b32060f6dfdab4ca355cd64da117b",
+      "records": 236,
+      "activeProducts": 34
+    },
+    "decor": {
+      "path": "decor.csv",
+      "sha256": "9ee55475ea12c6324cbd397418656b62beb394948503c52dc3c41adb94fe7654",
+      "records": 9,
+      "activeProducts": 5
+    },
+    "promos": {
+      "status": "unavailable",
+      "path": null,
+      "reason": "No saved local promo feed; offline preview disables promo lookup."
+    }
+  },
+  "assetCoverage": "saved-local-images-only"
+}

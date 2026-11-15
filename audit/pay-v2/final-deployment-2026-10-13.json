@@ -1,0 +1,26 @@
+{
+  "time": "2026-10-13T04:28:13.919Z",
+  "legacyHashUnchanged": true,
+  "legacyVersion": 53,
+  "v2": {
+    "status": "ACTIVE",
+    "version": 5
+  },
+  "workerRuns": [
+    {
+      "jobname": "lady-elka-v2-worker",
+      "status": "succeeded",
+      "start_time": "2026-10-13 04:28:00.063814+00"
+    },
+    {
+      "jobname": "lady-elka-v2-worker",
+      "status": "succeeded",
+      "start_time": "2026-10-13 04:26:00.036616+00"
+    },
+    {
+      "jobname": "lady-elka-v2-worker",
+      "status": "succeeded",
+      "start_time": "2026-10-13 04:24:00.052254+00"
+    }
+  ]
+}

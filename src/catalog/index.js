@@ -1,3 +1,9 @@
+import { initForms } from '../../storefront/client/forms.js';
+const mountLeadForms = () => initForms();
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', mountLeadForms, { once: true });
+else mountLeadForms();
+import { setPriceStatus, guardPricePurchase } from './price-recovery.js';
+document.addEventListener('click', guardPricePurchase, true);
 // === Каталог Lady Elka — точка входа ===
 // Исходники разбиты на модули в src/catalog/. Сборка: npm run build -> dist/catalog.js
 import {
@@ -6,6 +12,7 @@ import {
 import {
   $$, num, rub, norm, normCat, isThankUrl, hideCard,
   findField, ghostify, haveBuilderFields, fillBuilderFields, fillBuilderFieldsMultiple,
+  formatCartItem,
 } from './utils.js';
 import { loadDict, loadDecorDict } from './sheets.js';
 
@@ -22,6 +29,7 @@ const STRICT_PHOTO_BY_CAT = false;
 // открывается через window.open, и браузер заблокирует окно, если до него был сетевой запрос.
 let priceDict = null;
 let priceDecorDict = null;
+const KEY = 'cart';
 
 function updatePhotos(card, catKey){
   const want = normCat(catKey);
@@ -196,6 +204,7 @@ function refreshExtraPhotos(card, catKey, photoList, showAll){
       img.removeAttribute('srcset');
       img.setAttribute('src', url);
       img.setAttribute('data-origin-src', url);
+      img.alt = card.querySelector('[data-prop-title]')?.textContent.trim() || img.alt || '';
       watchImageLoading(w, img);
       w.style.display = '';
     } else {
@@ -255,6 +264,7 @@ function renderDecorExtraPhotos(card, photos) {
       img.removeAttribute('srcset');
       img.setAttribute('src', url);
       img.setAttribute('data-origin-src', url);
+      img.alt = card.querySelector('[data-prop-title]')?.textContent.trim() || img.alt || '';
       watchImageLoading(w, img);
       w.style.display = '';
     } else {
@@ -293,14 +303,48 @@ function watchImageLoading(wrapper, img){
   if (img.complete && img.naturalWidth > 0) finish();
 }
 
-// До ответа Google Sheets не показываем шаблонную/устаревшую цену из CMS.
+// До ответа каталога не показываем шаблонную/устаревшую цену из CMS.
 // Проходим по уже отрендеренным карточкам до первого await в initCards().
 function markPricesLoading(){
-  $$(CARD_SEL).forEach(card => {
+  $$(CARD_SEL).filter(card => !card.hasAttribute('data-storefront-product')).forEach(card => {
     card.querySelectorAll('[data-price-decor], .price').forEach(priceEl => {
       setText(priceEl, 'Загрузка...');
     });
   });
+}
+
+function isDecorCard(card){
+  return !!card.querySelector('[data-product-id-decor]') || (
+    !!card.querySelector('[data-variants-decor]') &&
+    !card.querySelector('[data-prop-category]') &&
+    !card.querySelector('[data-prop-height]')
+  );
+}
+
+function neededPriceFeeds(cards, cart){
+  const need = { trees:false, decor:false };
+  cards.forEach(card => { need[isDecorCard(card) ? 'decor' : 'trees'] = true; });
+  if (Array.isArray(cart)) cart.forEach(item => {
+    need[String(item?.category || '').trim() === 'Декор' ? 'decor' : 'trees'] = true;
+  });
+  return need;
+}
+
+async function loadNeededPriceFeeds(need, cache = 'default'){
+  const results = await Promise.allSettled([
+    need.trees ? loadDict(cache) : Promise.resolve(null),
+    need.decor ? loadDecorDict(cache) : Promise.resolve(null)
+  ]);
+  const [trees, decor] = results;
+  if (trees.status === 'fulfilled' && trees.value){
+    priceDict = trees.value;
+    console.log('Таблица елок загружена, записей:', priceDict.byId.size + priceDict.byTitle.size);
+  } else if (trees.status === 'rejected') { priceDict = null; console.error('таблица елок не загрузилась', trees.reason); }
+  if (decor.status === 'fulfilled' && decor.value){
+    priceDecorDict = decor.value;
+    console.log('Таблица декора загружена, записей:', priceDecorDict.byId.size + priceDecorDict.byTitle.size);
+  } else if (decor.status === 'rejected') { priceDecorDict = null; console.error('таблица декора не загрузилась', decor.reason); }
+  return { dict:trees.status === 'fulfilled' ? trees.value : null, decorDict:decor.status === 'fulfilled' ? decor.value : null };
 }
 
 function escapeHtml(s){
@@ -522,7 +566,8 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     if (!buy) return;
     buy.dataset.name = sheetTitle;
     buy.dataset.price = price;
-    buy.dataset.photo = variant?.photos?.[0] || entry.photos?.[0] || '';
+    buy.dataset.photo = variant?.photos?.[0] || entry.photos?.[0]
+      || image?.getAttribute('data-origin-src') || image?.currentSrc || image?.src || '';
     buy.dataset.category = 'Декор';
     buy.dataset.height = variant?.size || '';
     buy.dataset.diam = '';
@@ -613,34 +658,25 @@ function initDecorCard(card, entry, titleEl, titleNow) {
 (async function initCards(){
   const toId = s => String(s||'').trim().toLowerCase();
 
-  let dict, decorDict;
+  const savedCart = getCart();
+
+  if (document.readyState === 'loading') {
+    await new Promise(resolve => document.addEventListener('DOMContentLoaded', resolve, { once:true }));
+  }
+  const cards = $$(CARD_SEL).filter(card => !card.hasAttribute('data-storefront-product'));
   markPricesLoading();
-  try {
-    dict = await loadDict();
-    priceDict = dict; // отдаём в модульный кэш — по нему сверяются цены корзины перед оплатой
-    console.log('Таблица елок загружена, записей:', dict ? (dict.byId.size + dict.byTitle.size) : 0);
-  } catch(e){ console.error('таблица не загрузилась', e); }
-  try {
-    decorDict = await loadDecorDict();
-    priceDecorDict = decorDict;
-    console.log('Таблица декора загружена, записей:', decorDict ? (decorDict.byId.size + decorDict.byTitle.size) : 0);
-  } catch(e){ console.error('таблица декора не загрузилась', e); }
+  cards.forEach(card => setPriceStatus(card, 'loading'));
+  const neededFeeds = neededPriceFeeds(cards, []);
+  if (!neededFeeds.trees && !neededFeeds.decor) return;
+  const { dict, decorDict } = await loadNeededPriceFeeds(neededFeeds);
   
+  cards.forEach(card => setPriceStatus(card, (isDecorCard(card) ? decorDict : dict) ? 'loading' : 'error'));
   if (!dict && !decorDict) {
     console.warn('Ни одна таблица не загрузилась');
     return;
   }
 
-  // Корзина могла пролежать в браузере с прошлых визитов со старыми ценами —
-  // чиним сразу, не дожидаясь открытия корзины.
-  try {
-    const savedCart = getCart();
-    if (savedCart.length && revalidateCartPrices(savedCart).changed){
-      console.log('Цены в сохранённой корзине обновлены до актуальных');
-    }
-  } catch(e){ console.warn('не удалось обновить цены сохранённой корзины', e); }
-
-  $$(CARD_SEL).forEach(card=>{
+  cards.forEach(card=>{
     if(card.__inited) return; card.__inited = true;
 
     // выпилим любые старые <select>
@@ -688,7 +724,7 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     const hTextEl   = card.querySelector('[data-prop-height]');
     const variantsDecorEl = card.querySelector('[data-variants-decor]');
     // Декор, если есть data-product-id-decor ИЛИ (есть data-variants-decor И нет признаков елки)
-    const isDecor = !!idBlockDecor || (!!variantsDecorEl && !catTextEl && !hTextEl);
+    const isDecor = isDecorCard(card);
 
     if (isDecor) {
       // Обработка декора (без категорий и высот)
@@ -699,9 +735,11 @@ function initDecorCard(card, entry, titleEl, titleNow) {
       if (!entry) entry = decorByTitle.get(norm(titleNow));
       if (!entry){
         console.warn('нет активных строк для декора', pid || titleNow);
-        return; // не скрываем декор, если его нет в таблице
+        setPriceStatus(card, 'unavailable');
+        return; // таблица загружена, активной записи нет
       }
 
+      setPriceStatus(card, 'ready');
       initDecorCard(card, entry, titleEl, titleNow);
       return;
 
@@ -882,8 +920,9 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     if (!entry) entry = byTitle.get(norm(titleNow));
     if (!entry){
       console.warn('нет активных строк для карточки', pid || titleNow, 'byId size:', byId.size, 'byTitle size:', byTitle.size);
-      hideCard(card); return
+      setPriceStatus(card, 'unavailable'); hideCard(card); return
     }
+    setPriceStatus(card, 'ready');
     console.log('Найдена запись для карточки:', titleNow, 'категорий:', entry.cats.size);
 
     const sheetTitle = entry.title || titleNow;
@@ -921,7 +960,7 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     const catKeys = [...cats.keys()];
     if (catKeys.length === 0) {
       // нет ни одной активной категории/высоты — прячем карточку
-      hideCard(card); return
+      setPriceStatus(card, 'unavailable'); hideCard(card); return
     }
 
     // порядок категорий: сперва по CAT_ORDER, затем как есть
@@ -1091,10 +1130,17 @@ function initDecorCard(card, entry, titleEl, titleNow) {
     refreshExtraPhotos(card, curCatKey, phList0, singleCategory);
     setDescForCategory(curCatKey);
   });
+  // Сверка старой корзины не должна задерживать показ цен на карточках.
+  if (savedCart.length) refreshPriceDicts().then(() => {
+    try {
+      if (revalidateCartPrices(getCart()).changed){
+        console.log('Цены в сохранённой корзине обновлены до актуальных');
+      }
+    } catch(e){ console.warn('не удалось обновить цены сохранённой корзины', e); }
+  });
 })();
 
 // === ПОПАП (поддержка нескольких товаров)
-const KEY='cart';
 const popup=document.querySelector('[data-cart-popup]');
 function getCart(){ try{return JSON.parse(localStorage.getItem(KEY)||'[]')}catch{return[]} }
 function setCart(arr){ try{localStorage.setItem(KEY, JSON.stringify(arr||[]))}catch{} }
@@ -1105,6 +1151,7 @@ window.updateCartTotal = updateCartTotal;
 
 // Генерируем уникальный ID товара
 function getItemId(item){
+  if (item.productId && item.variantId) return `${item.productId}:${item.variantId}`;
   // Для декора с вариантами используем height, для декора без вариантов - только name и category
   // Для елок всегда используем height
   const height = String(item.height || '').trim();
@@ -1127,10 +1174,7 @@ function getItemId(item){
 }
 
 function refreshPriceDicts(){
-  return Promise.all([
-    loadDict().then(d => { priceDict = d; }).catch(e => console.warn('не обновились цены ёлок', e)),
-    loadDecorDict().then(d => { priceDecorDict = d; }).catch(e => console.warn('не обновились цены декора', e))
-  ]);
+  return loadNeededPriceFeeds(neededPriceFeeds([], getCart()), 'no-store');
 }
 
 // Обновляет цены уже лежащих в корзине товаров и перерисовывает корзину.
@@ -1168,7 +1212,8 @@ function revalidateCartPrices(cart){
     const src = isDecor ? freshDecorDict : freshDict;
     if (!src) return;
     const tKey = norm(item.name||'');
-    const entry = src.byTitle.get(tKey) || src.byTitle.get(normCat(item.name||''));
+    const entry = (item.productId && src.byId.get(String(item.productId).trim().toLowerCase()))
+      || src.byTitle.get(tKey) || src.byTitle.get(normCat(item.name||''));
     if (!entry) return;
 
     // У декора своя структура таблицы: варианты размеров, а не категории/высоты как у ёлок
@@ -1177,7 +1222,9 @@ function revalidateCartPrices(cart){
       const variants = entry.variants || [];
       if (variants.length){
         // height у декора хранит размер варианта (например «120х40х60»)
-        const v = variants.find(o => String(o.size) === String(item.height)) || (variants.length===1 ? variants[0] : null);
+        const v = item.variantId
+          ? variants.find(o => o.variantId === item.variantId)
+          : variants.find(o => String(o.size) === String(item.height)) || (variants.length===1 ? variants[0] : null);
         if (!v) return;
         freshPrice = num(v.price||0);
       } else {
@@ -1186,7 +1233,9 @@ function revalidateCartPrices(cart){
     } else {
       const list = entry.cats?.get(normCat(item.category||''));
       if (!list || !list.length) return;
-      const match = list.find(o => String(o.height) === String(item.height)) || (list.length===1 ? list[0] : null);
+      const match = item.variantId
+        ? list.find(o => o.variantId === item.variantId)
+        : list.find(o => String(o.height) === String(item.height)) || (list.length===1 ? list[0] : null);
       if (!match) return;
       freshPrice = num(match.price||0);
     }
@@ -1211,6 +1260,7 @@ function addToCart(item){
   
   if(existing >= 0){
     cart[existing].qty = (cart[existing].qty || 1) + 1;
+    if (item.photo && !cart[existing].photo) cart[existing].photo = item.photo;
   } else {
     cart.push({...item, qty: 1, id: itemId});
   }
@@ -1848,6 +1898,19 @@ function fillPopup(){
     }
     // НЕ меняем display попапа здесь - только обновляем итог
     updateCartTotal();
+    const form = popup.querySelector('form');
+    if(form){
+      for(const name of ['cart_total', 'order_price_discounted', 'Общая сумма']){
+        const field = form.querySelector(`[name="${name}"]`);
+        if(field) field.value = '0';
+      }
+      const items = form.querySelector('[name="cart_items"]');
+      if(items) items.value = '[]';
+      for(const name of ['order_title', 'Товар']){
+        const field = form.querySelector(`[name="${name}"]`);
+        if(field) field.value = '';
+      }
+    }
     return;
   }
   
@@ -1903,6 +1966,13 @@ function fillPopup(){
   }
   
   updateCartTotal();
+  // Количество и удаление меняют корзину, пока форма уже открыта.
+  // Синхронизируем поля заказа вместе с видимым итогом.
+  const form = popup.querySelector('form');
+  if(form){
+    ensureTapTopCartFields(form, cart);
+    ensureOrderHiddenFields(form, cart);
+  }
 }
 
 // Функция не нужна - обработчики работают напрямую с data-icons-down/up/remove
@@ -1976,7 +2046,7 @@ function updateCartItemDisplay(itemEl, item, itemId){
     const cSpan = cached.cEl.querySelector('.text-block-wrap-div') || cached.cEl;
     const catText = String(item.category || '').trim();
     const hideCat = !catText || catText.toLowerCase() === 'туя';
-    setText(cSpan, hideCat ? '' : catText);
+    setText(cSpan, hideCat ? '' : (item.variantType ? `${catText} · ${item.variantType}` : catText));
     cached.cEl.style.display = hideCat ? 'none' : '';
   }
   
@@ -2295,6 +2365,13 @@ document.addEventListener('click',e=>{
   }
   
   const item={
+    ...(btn.dataset.productId && btn.dataset.variantId ? {
+      productId: btn.dataset.productId,
+      variantId: btn.dataset.variantId,
+      diameter: btn.dataset.diam || '',
+      branches: btn.dataset.branches || '',
+      variantType: btn.dataset.variantType || '',
+    } : {}),
     name: name,
     height:btn.dataset.height||'',
     price: price,
@@ -2318,7 +2395,7 @@ document.addEventListener('click',e=>{
     syncCartPricesAndRender(); // подтягиваем актуальные цены в уже лежащую корзину
 
     // Открываем попап сразу
-    popup.style.display = '';
+    popup.style.display = 'flex';
     popup.style.visibility = '';
     popup.style.opacity = '';
     popup.removeAttribute('hidden');
@@ -2373,7 +2450,7 @@ document.addEventListener('click',e=>{
         if(cartCheck.length > 0 && popup){
           const computed = getComputedStyle(popup);
           if(computed.display === 'none' || computed.visibility === 'hidden' || computed.opacity === '0'){
-            popup.style.display = '';
+            popup.style.display = 'flex';
             popup.style.visibility = '';
             popup.style.opacity = '';
             popup.removeAttribute('hidden');
@@ -2522,7 +2599,6 @@ window.openPayInNewTab = openPayInNewTab;
 // ————————————————— Ускоряем первое соединение
 // Создание платежа и проверка статуса идут через Supabase Edge Function.
 window.PAYMENT_ENDPOINT='https://mgnotvaahftrbifqtahf.supabase.co/functions/v1/pay';
-// старый (заблокирован): https://d5dn0769q2kt0hkqs03k.9bgyfspn.apigw.yandexcloud.net/api/pay
 
 // Проверяем, что функция openPayInNewTab доступна (fallback для случая, если скрипты загружаются в неправильном порядке)
 // Примечание: функция уже объявлена в window в скрипте 2, но оставляем проверку на всякий случай
@@ -2834,7 +2910,7 @@ function ensureOrderHiddenFields(form, items){
     const price = Number(String(item.price||0).replace(/[^\d.-]/g,'')) || 0;
     const qty = Number(item.qty||1);
     const itemTotal = price * qty;
-    return `${item.name || 'Товар'}${item.height ? ` ${item.height} см` : ''}${item.category ? ` (${item.category})` : ''}${qty > 1 ? ` x${qty}` : ''} ${itemTotal} ₽`;
+    return `${formatCartItem(item)}${qty > 1 ? ` x${qty}` : ''} ${itemTotal} ₽`;
   }).join('; ');
   
   const baseTotal = cart.reduce((sum, item) => sum + ((item.price || 0) * (item.qty || 1)), 0);
@@ -2874,9 +2950,7 @@ function ensureOrderHiddenFields(form, items){
       const qty = Number(item.qty||1);
       const itemTotal = price * qty;
       
-      const parts = [item.name || 'Товар'];
-      if(item.height) parts.push(`${item.height} см`);
-      if(item.category) parts.push(`(${item.category})`);
+      const parts = [formatCartItem(item)];
       if(qty > 1) parts.push(`x${qty}`);
       parts.push(`${itemTotal} ₽`);
       return parts.join(' ');
@@ -3114,12 +3188,12 @@ document.addEventListener('click', async (ev)=>{
     const oid = `LE-${Date.now()}-${firstItem?.height||''}`;
 
     // Описание с адресом, способом связи и промокодом
-    // ВАЖНО: добавляем цену каждого товара и используем разделитель " | " для парсинга в Yandex Cloud Function
+    // ВАЖНО: добавляем цену каждого товара и используем разделитель " | " для парсинга на стороне сервера
     const itemsList = cart.map(item => {
       const price = Number(String(item.price||0).replace(/[^\d.-]/g,'')) || 0;
       const qty = Number(item.qty||1);
       const itemTotal = price * qty;
-      return `${item.name||'Товар'}${item.height?` ${item.height} см`:''}${item.category?` (${item.category})`:''}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
+      return `${formatCartItem(item)}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
     }).join(' | ');
     let descr = itemsList;
     if (name) descr += ` | Покупатель: ${name}`;
@@ -3408,12 +3482,12 @@ document.addEventListener('touchend', async (ev)=>{
     const oid = `LE-${Date.now()}-${firstItem?.height||''}`;
     
     // Описание с адресом, способом связи и промокодом
-    // ВАЖНО: добавляем цену каждого товара и используем разделитель " | " для парсинга в Yandex Cloud Function
+    // ВАЖНО: добавляем цену каждого товара и используем разделитель " | " для парсинга на стороне сервера
     const itemsList = cart.map(item => {
       const price = Number(String(item.price||0).replace(/[^\d.-]/g,'')) || 0;
       const qty = Number(item.qty||1);
       const itemTotal = price * qty;
-      return `${item.name||'Товар'}${item.height?` ${item.height} см`:''}${item.category?` (${item.category})`:''}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
+      return `${formatCartItem(item)}${qty > 1 ? ` x${qty}` : ''} — ${itemTotal} ₽`;
     }).join(' | ');
     let descr = itemsList;
     if (name) descr += ` | Покупатель: ${name}`;

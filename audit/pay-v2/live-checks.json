@@ -1,0 +1,67 @@
+{
+  "time": "2026-10-12T15:36:24.710Z",
+  "checks": [
+    {
+      "fn": "pay",
+      "origin": "https://lady-elka.ru",
+      "status": 204,
+      "allowOrigin": "https://lady-elka.ru"
+    },
+    {
+      "fn": "pay",
+      "origin": "https://www.lady-elka.ru",
+      "status": 204,
+      "allowOrigin": "https://www.lady-elka.ru"
+    },
+    {
+      "fn": "pay-v2",
+      "origin": "https://lady-elka.ru",
+      "status": 204,
+      "allowOrigin": "https://lady-elka.ru"
+    },
+    {
+      "fn": "pay-v2",
+      "origin": "https://www.lady-elka.ru",
+      "status": 204,
+      "allowOrigin": "https://www.lady-elka.ru"
+    },
+    {
+      "fn": "pay",
+      "method": "GET",
+      "status": 404
+    },
+    {
+      "fn": "pay-v2",
+      "action": "pay",
+      "status": 503
+    },
+    {
+      "fn": "pay-v2",
+      "action": "create-cod-order",
+      "status": 503
+    },
+    {
+      "fn": "pay-v2",
+      "action": "hook",
+      "status": 503
+    },
+    {
+      "fn": "pay-v2",
+      "action": "poll-payments",
+      "status": 503
+    },
+    {
+      "fn": "pay-v2",
+      "action": "retry-cod-delivery",
+      "status": 503
+    }
+  ],
+  "counts": [
+    {
+      "orders": 0,
+      "effects": 0,
+      "payments": 0,
+      "counters": 0
+    }
+  ]
+}

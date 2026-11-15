@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import {createBlogStore,validatePost,exportBlog,sourcePosts} from '../server/blog.mjs';
+const input={title:'Тест',slug:'test-post',excerpt:'Анонс',text:'<script>alert(1)</script>',cover:'',alt:'',seoTitle:'',seoDescription:'',status:'draft'};
+test('durable CRUD, revisions, duplicate slug, export and deletion',async()=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'elka-blog-'));try{const file=path.join(dir,'posts.json'),s=createBlogStore(file),p=await s.save(input);assert.deepEqual(await createBlogStore(file).list(),[p]);await assert.rejects(s.save(input),{status:409});await assert.rejects(s.save({...input,revision:9},p.id),{status:409});const published=await s.save({...input,status:'published',revision:p.revision},p.id);assert.equal(exportBlog(await s.list()).posts[0].url,'/blog/test-post.html');await assert.rejects(s.remove(p.id,1),{status:409});await s.save({...published,status:'archived'},p.id);assert.equal(exportBlog(await s.list()).posts.length,0);await s.remove(p.id,3);assert.deepEqual(await s.list(),[]);}finally{await fs.rm(dir,{recursive:true,force:true});}});
+test('validation rejects traversal, unsafe URLs and incomplete publishing',()=>{for(const patch of [{slug:'../x'},{slug:'a/b'},{cover:'javascript:alert(1)'},{cover:'https://u:p@example.com/a',alt:'x'},{status:'published',text:''},{title:''}])assert.throws(()=>validatePost({...input,...patch}));assert.equal(validatePost(input).text,input.text);});
+test('serialized concurrent creates cannot duplicate a slug',async()=>{const dir=await fs.mkdtemp(path.join(os.tmpdir(),'elka-blog-'));try{const s=createBlogStore(path.join(dir,'posts.json')),r=await Promise.allSettled([s.save(input),s.save(input)]);assert.equal(r.filter(v=>v.status==='fulfilled').length,1);}finally{await fs.rm(dir,{recursive:true,force:true});}});
+test('existing captured source posts remain references and are excluded from export',async()=>{const sources=await sourcePosts();assert.equal(sources.length,2);assert.ok(sources.every(p=>p.status==='source'&&!p.id));assert.equal(exportBlog(sources).posts.length,0);await assert.rejects(createBlogStore('/tmp/unused-blog.json').save({...input,slug:sources[0].slug}),{status:409});});

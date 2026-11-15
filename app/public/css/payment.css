@@ -752,6 +752,83 @@ body.payment-active main,body.profile-active main{max-width:none}
 .profile-view .history-empty{padding:24px;border-radius:28px;background:var(--surface);font-size:14px;color:var(--muted)}
 .profile-view .profile-status-icon .icon{width:20px;height:20px}
 .profile-view .neo-back-button,.contact-finder-panel .neo-back-button{display:inline-flex;gap:6px;align-items:center;background:transparent;border:0;padding:0;margin:0 0 20px;color:var(--muted);font:inherit;font-size:12px;cursor:pointer;text-decoration:none}
+
+/* Standalone success-preview. It deliberately has no payment-provider state. */
+body.payment-success-active { background: #f6f7fb; }
+body.payment-success-active .neo-top-nav,
+body.payment-success-active .sidebar-column { display: none; }
+body.payment-success-active .dashboard-shell { display: block; width: 100%; margin: 0; }
+body.payment-success-active .workspace,
+body.payment-success-active main { width: 100%; max-width: none; }
+.payment-success-preview { min-height: 100vh; padding: 72px 20px 44px; background: radial-gradient(circle at 50% 75%, #e8ecf6 0, #f6f7fb 42%, #fafafa 77%); }
+.pro-ticket-shell { position: relative; width: min(100%, 416px); height: 620px; margin: 0 auto; filter: drop-shadow(0 10px 18px rgba(30, 38, 62, .035)); }
+.pro-ticket {
+  position: relative; width: 624px; min-height: 930px; margin: 0; overflow: hidden;
+  border-radius: 30px 30px 22px 22px; background: #fff; color: #18181a;
+  --ticket-notch-radius: 25px; --ticket-notch-center: 325px; --ticket-bottom-width: 34px; --ticket-bottom-height: 24px;
+  mask-image:
+    radial-gradient(circle var(--ticket-notch-radius) at 0 var(--ticket-notch-center), transparent calc(var(--ticket-notch-radius) - 1px), #000 var(--ticket-notch-radius)),
+    radial-gradient(circle var(--ticket-notch-radius) at 100% var(--ticket-notch-center), transparent calc(var(--ticket-notch-radius) - 1px), #000 var(--ticket-notch-radius)),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 8.333% 100%, transparent 0 98%, #000 100%),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 25% 100%, transparent 0 98%, #000 100%),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 41.667% 100%, transparent 0 98%, #000 100%),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 58.333% 100%, transparent 0 98%, #000 100%),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 75% 100%, transparent 0 98%, #000 100%),
+    radial-gradient(ellipse var(--ticket-bottom-width) var(--ticket-bottom-height) at 91.667% 100%, transparent 0 98%, #000 100%);
+  mask-composite: intersect;
+  transform: scale(.6666667); transform-origin: top left;
+}
+.pro-ticket__top { padding: 68px 48px 50px; text-align: center; }
+.pro-ticket__celebration { margin-bottom: 25px; font-size: 68px; line-height: 1; filter: drop-shadow(0 5px 4px rgba(135, 86, 24, .16)); }
+.pro-ticket h1 { margin: 0; font-size: 38px; line-height: 1.06; letter-spacing: -.055em; }
+.pro-ticket__top p { margin: 14px 0 0; color: #73747b; font-size: 21px; line-height: 1.38; letter-spacing: -.035em; }
+.pro-ticket__top p strong { color: inherit; font-weight: 400; }
+.pro-ticket__divider { height: 1px; margin: 0 74px; background: repeating-linear-gradient(90deg, #85858c 0 8px, transparent 8px 19px); }
+.pro-ticket__details { padding: 58px 48px 50px; }
+.pro-ticket__row { display: flex; justify-content: space-between; gap: 24px; }
+.pro-ticket__row > div,
+.pro-ticket__date { display: grid; gap: 8px; }
+.pro-ticket__details span { color: #85858c; font-size: 16px; line-height: 1.15; font-weight: 400; letter-spacing: -.035em; }
+.pro-ticket__details strong { font-size: 21px; line-height: 1.2; letter-spacing: -.045em; font-weight: 600; }
+.pro-ticket__amount { text-align: right; }
+.pro-ticket__date { margin-top: 38px; }
+.pro-ticket__plan { display: flex; align-items: center; gap: 18px; margin-top: 36px; padding: 21px 24px; border-radius: 20px; background: #f5f6fb; text-align: left; }
+.pro-ticket__plan > div:last-child { display: grid; gap: 5px; }
+.pro-ticket__plan strong { font-size: 19px; font-weight: 600; }
+.pro-ticket__plan span { font-size: 17px; }
+.pro-ticket__mark { position: relative; width: 61px; height: 42px; flex: 0 0 61px; }
+.pro-ticket__mark span { position: absolute; top: 7px; width: 30px; height: 30px; border-radius: 50%; }
+.pro-ticket__mark span:nth-child(1) { left: 4px; background: #ef2d42; }
+.pro-ticket__mark span:nth-child(2) { left: 25px; background: #f7a91b; mix-blend-mode: multiply; }
+.pro-ticket__mark span:nth-child(3) { display: none; }
+.pro-ticket__perforation { height: 5px; margin: 0 -2px; background: repeating-linear-gradient(90deg, #f0f1f5 0 26px, transparent 26px 36px); }
+.pro-ticket__barcode-area { display: grid; justify-items: center; padding: 55px 40px 67px; }
+.pro-ticket__barcode { width: 366px; max-width: 100%; height: 120px; background: repeating-linear-gradient(90deg, #171719 0 2px, transparent 2px 5px, #171719 5px 7px, transparent 7px 10px, #171719 10px 14px, transparent 14px 17px, #171719 17px 18px, transparent 18px 23px, #171719 23px 27px, transparent 27px 30px, #171719 30px 32px, transparent 32px 37px); }
+.pro-ticket__barcode-digits { margin-top: 4px; color: #171719; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; letter-spacing: .22em; white-space: nowrap; }
+.pro-ticket__back { display: flex; width: fit-content; margin: 52px auto 0; background: #fff !important; color: #1d1d1f !important; box-shadow: none; }
+.pro-ticket__back:hover { background: var(--blue) !important; color: #fff !important; }
+@media (max-width: 600px) {
+  .payment-success-preview { padding: 30px 12px 36px; }
+  .pro-ticket-shell { width: min(100%, 416px); height: 620px; min-height: 0; }
+  .pro-ticket { min-height: 930px; border-radius: 25px 25px 18px 18px; --ticket-notch-radius: 19px; --ticket-notch-center: 260px; --ticket-bottom-width: 27px; --ticket-bottom-height: 18px; }
+  .pro-ticket__top { padding: 46px 28px 38px; }
+  .pro-ticket__celebration { margin-bottom: 20px; font-size: 54px; }
+  .pro-ticket h1 { font-size: 32px; }
+  .pro-ticket__top p { font-size: 18px; }
+  .pro-ticket__divider { margin: 0 48px; }
+  .pro-ticket__details { padding: 42px 28px 38px; }
+  .pro-ticket__details span { font-size: 14px; }
+  .pro-ticket__details strong { font-size: 17px; }
+  .pro-ticket__row { gap: 12px; }
+  .pro-ticket__date { margin-top: 30px; }
+  .pro-ticket__plan { gap: 14px; margin-top: 30px; padding: 17px; }
+  .pro-ticket__plan strong { font-size: 17px; }
+  .pro-ticket__plan span { font-size: 15px; }
+  .pro-ticket__mark { width: 52px; height: 37px; }
+  .pro-ticket__barcode-area { padding: 42px 28px 55px; }
+  .pro-ticket__barcode { height: 100px; }
+  .pro-ticket__barcode-digits { font-size: 10px; letter-spacing: .12em; }
+}
 .profile-feedback:empty{display:none}.profile-feedback{font-size:13px;color:var(--muted);margin-top:16px}
 @media(max-width:760px){#payment-page{padding:12px 0}.checkout-total{padding:16px 24px}.profile-subscription-head{flex-wrap:wrap}.profile-renew-btn{margin-left:52px}.profile-benefits-grid{grid-template-columns:1fr 1fr}.neo-header-inner{flex-wrap:wrap;height:auto;gap:12px;padding:12px 0}.top-tabs{flex-wrap:wrap;gap:4px}.top-tab{padding:8px 10px}.profile-view .profile-subscription-meta{line-height:18px}}
 

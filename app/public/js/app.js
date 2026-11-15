@@ -16,8 +16,7 @@ function icons(root=document){root.querySelectorAll('[data-icon]').forEach(e=>e.
 icons();
 let catalogSettings=null;
 // При локальной разработке кабинет и API обслуживает один сервер на :4180.
-// В опубликованной версии сохраняем адрес Cloud Function, чтобы не менять
-// существующее подключение без отдельного развёртывания.
+// В опубликованной версии используется Supabase Edge Function catalog.
 const isLocalHost=['localhost','127.0.0.1','::1'].includes(location.hostname);
 const API_BASE=isLocalHost?location.origin:'https://mgnotvaahftrbifqtahf.supabase.co/functions/v1/catalog';
 const SESSION_KEY='lady-elka-catalog-session';
@@ -47,8 +46,10 @@ async function api(url,options={}){
  try{res=await fetch(`${API_BASE}${url}`,{...options,headers});}
  catch{throw new Error('Нет связи с сервером');}
  const data=await res.json().catch(()=>null);
- if(!res.ok){if(res.status===401){sessionToken='';sessionStorage.removeItem(SESSION_KEY);if(!$('#login-dialog').open) $('#login-dialog').showModal();}throw new Error(data?.error || 'Не удалось выполнить запрос');}
+ if(!res.ok){if(res.status===401){sessionToken='';sessionStorage.removeItem(SESSION_KEY);if(!$('#login-dialog').open) $('#login-dialog').showModal();}throw Object.assign(new Error(data?.error || 'Не удалось выполнить запрос'),{status:res.status,retryAfter:Number(res.headers.get('Retry-After'))||0});}
  if(data===null)throw new Error('Некорректный ответ сервера');
+ // Сохранение прошло, но фиды для сайта не обновились — показываем после тоста «сохранено».
+ const feedWarning=res.headers.get('X-Feed-Warning');if(feedWarning)setTimeout(()=>toast(decodeURIComponent(feedWarning)),0);
  return data;
 }
 async function load(){
@@ -71,7 +72,7 @@ function render(){
  }).join('');
  $('#product-list').querySelectorAll('img').forEach(img=>img.addEventListener('error',()=>{img.parentElement.innerHTML=pict('image');},{once:true}));
 }
-function navigate(page){const current=['catalog','orders','promos','analytics','integration','settings','payment','profile','profile-payments','profile-history'].includes(page)?page:'catalog';for(const key of ['catalog','orders','promos','analytics','integration','settings','payment','profile','profile-payments','profile-history']){const el=$(`#${key}-page`);if(el){el.hidden=current!==key;el.classList.toggle('active',current===key);}}$$('.side-tabs [data-nav]').forEach(a=>{if(a.dataset.nav===(current.startsWith('profile')?'profile':current))a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.body.classList.toggle('payment-active',current==='payment');document.body.classList.toggle('profile-active',current.startsWith('profile'));document.querySelectorAll('.top-tabs [data-nav]').forEach(a=>{const selected=a.dataset.nav===(current==='payment'?'payment':'catalog');a.classList.toggle('active',selected);if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.title=`${{profile:'Профиль','profile-payments':'Способы оплаты','profile-history':'История операций',payment:'Оплата',analytics:'Аналитика',catalog:'Каталог',orders:'Заказы',promos:'Промокоды',integration:'Подключение сайта',settings:'Настройки'}[current]} — Lady Elka`;window.dispatchEvent(new CustomEvent('page-shown',{detail:current}));}
+function navigate(page){const current=['catalog','blog','orders','promos','analytics','integration','settings','payment','payment-success','profile','profile-payments','profile-history'].includes(page)?page:'catalog';for(const key of ['catalog','blog','orders','promos','analytics','integration','settings','payment','payment-success','profile','profile-payments','profile-history']){const el=$(`#${key}-page`);if(el){el.hidden=current!==key;el.classList.toggle('active',current===key);}}$$('.side-tabs [data-nav]').forEach(a=>{if(a.dataset.nav===(current.startsWith('profile')?'profile':current))a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.body.classList.toggle('payment-active',current==='payment');document.body.classList.toggle('payment-success-active',current==='payment-success');document.body.classList.toggle('profile-active',current.startsWith('profile'));document.querySelectorAll('.top-tabs [data-nav]').forEach(a=>{const selected=a.dataset.nav===(current==='payment'?'payment':'catalog');a.classList.toggle('active',selected);if(selected)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});document.title=`${{blog:'Блог',profile:'Профиль','profile-payments':'Способы оплаты','profile-history':'История операций',payment:'Оплата','payment-success':'Подписка подключена',analytics:'Аналитика',catalog:'Каталог',orders:'Заказы',promos:'Промокоды',integration:'Подключение сайта',settings:'Настройки'}[current]} — Lady Elka`;window.dispatchEvent(new CustomEvent('page-shown',{detail:current}));}
 window.addEventListener('hashchange',()=>{navigate(location.hash.slice(1));window.scrollTo(0,0);});navigate(location.hash.slice(1));
 function syncSettingsNav(page){const active=page==='integration'?'settings':page;$$('.side-tabs [data-nav]').forEach(a=>{if(a.dataset.nav===active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});}
 window.addEventListener('page-shown',e=>{if(e.detail==='integration')syncSettingsNav(e.detail);});syncSettingsNav(location.hash.slice(1));
@@ -87,3 +88,37 @@ function renderFeeds(){
 $('#feed-links').addEventListener('click',async e=>{const b=e.target.closest('[data-copy]');if(b){try{await navigator.clipboard.writeText(b.dataset.copy);toast('Ссылка скопирована');}catch{const input=b.closest('.feed-card').querySelector('input');input.select();toast('Ссылка выделена. Нажмите ⌘C для копирования.');}}});
 $('#login-dialog').addEventListener('cancel',e=>e.preventDefault());$('#login-form').addEventListener('submit',async e=>{e.preventDefault();try{const data=await api('/api/login',{method:'POST',body:JSON.stringify({password:e.target.elements.password.value})});sessionToken=data.token;sessionStorage.setItem(SESSION_KEY,sessionToken);e.target.reset();$('#login-error').textContent='';$('#login-dialog').close();load();}catch(err){$('#login-error').textContent=err.message;}});
 load();
+
+// BEGIN SITE PUBLISH CONTROLLER (isolated browser controller, exercised with API mocks).
+function initSitePublishing({request,root=document,listen=window,clock=Date.now,schedule=setTimeout,cancel=clearTimeout}){
+ const find=id=>root.querySelector('#'+id),button=find('publish-site'),dialog=find('publish-confirm'),submit=find('publish-confirm-submit'),feedback=find('publish-feedback'),status=find('publish-status'),link=find('publish-run-link'),refresh=find('publish-status-refresh');
+ let busy=false,until=0,timer,poll,statusBusy=false,authenticated=false;
+ const labels={queued:'В очереди',in_progress:'Идёт сборка',success:'Успешно',failure:'Ошибка'};
+ function message(text,state){feedback.textContent=text;feedback.dataset.state=state;}
+ function ready(){button.disabled=busy||clock()<until;button.textContent=busy?'Отправляем…':clock()<until?'Подождите минуту':'Обновить сайт';}
+ function cooldown(seconds){until=clock()+Math.min(60,Math.max(1,seconds))*1000;cancel(timer);timer=schedule(ready,until-clock());ready();}
+ async function check(){
+  if(statusBusy)return;statusBusy=true;refresh.disabled=true;
+  try{const data=await request('/api/publish-status'),run=data.lastRun;
+   status.textContent=run?`Последняя публикация: ${new Date(run.date).toLocaleString('ru-RU')} — ${run.conclusion==='skipped'?'Пропущена (автообновление выключено)':labels[run.status]||'Неизвестный статус'}`:'Последняя публикация: запусков пока нет';
+   link.hidden=true;link.removeAttribute('href');
+   if(run && /^https:\/\/github\.com\/arturablyazov5-glitch\/lady-elka-cloud-preview\/actions\/runs\/[1-9][0-9]*$/.test(run.url)){link.href=run.url;link.hidden=false;}
+  }catch(e){status.textContent=`Последняя публикация: ${e.message}`;link.hidden=true;link.removeAttribute('href');if(e.status===401)authenticated=false;}
+  finally{statusBusy=false;refresh.disabled=false;}
+ }
+ button.addEventListener('click',()=>{if(!busy&&clock()>=until)dialog.showModal();});
+ find('publish-cancel').addEventListener('click',()=>dialog.close());
+ submit.addEventListener('click',async()=>{
+  if(busy||clock()<until)return;dialog.close();busy=true;submit.disabled=true;ready();message('Отправляем запрос на обновление сайта…','pending');
+  try{const result=await request('/api/publish-site',{method:'POST',body:'{}'});message(result.message,'accepted');cooldown(60);await check();}
+  catch(e){message(e.message,e.status===429?'limited':'error');if(e.status===429)cooldown(e.retryAfter||60);else if(e.status===502)cooldown(60);}
+  finally{busy=false;submit.disabled=false;ready();button.focus();}
+ });
+ refresh.addEventListener('click',check);
+ async function tick(){if(authenticated&&root.visibilityState!=='hidden')await check();poll=schedule(tick,30000);}
+ listen.addEventListener('catalog-loaded',()=>{authenticated=true;check();if(!poll)poll=schedule(tick,30000);});
+ listen.addEventListener('pagehide',()=>{cancel(timer);cancel(poll);poll=null;authenticated=false;});
+ return {check};
+}
+// END SITE PUBLISH CONTROLLER
+initSitePublishing({request:api});

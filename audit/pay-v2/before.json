@@ -1,0 +1,41 @@
+{
+  "pay": {
+    "version": 52,
+    "hash": "e3b4d3e65dec3aee831d1808f06924304c466571e0e254aa0425d950e5b74f69",
+    "updatedAt": 1789287367002
+  },
+  "cron": [
+    {
+      "cron": [
+        {
+          "jobid": 1,
+          "active": true,
+          "jobname": "keep-alive-pay-function",
+          "schedule": "0 5 */3 * *",
+          "commandHash": "e9f12c81661eeff12ff4a3ea7b5c25db"
+        },
+        {
+          "jobid": 3,
+          "active": true,
+          "jobname": "lady-elka-payment-poll",
+          "schedule": "*/2 * * * *",
+          "commandHash": "bed368e5b4fa6ef1604486fba083f838"
+        },
+        {
+          "jobid": 5,
+          "active": false,
+          "jobname": "lady-elka-pro-renewal",
+          "schedule": "*/15 * * * *",
+          "commandHash": "3a628adef15d6ea0444fc7a941d217bb"
+        },
+        {
+          "jobid": 6,
+          "active": false,
+          "jobname": "lady-elka-lead-retry",
+          "schedule": "*/2 * * * *",
+          "commandHash": "005dd13954fef23237418c83b2ddb8d6"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+-- PREPARED ONLY. Separate owner authorization REQUIRED before production application.
+-- CURRENT STATUS: direct pg_net transport is BLOCKED by 20261010110000.
+-- Do NOT run the old enable recipe: a PAT from Vault becomes plaintext in pg_net's queue.
+-- Schedule-only GitHub Actions (20-minute feed hash check) is the safe available channel.
+-- This file intentionally contains no enabling UPDATE or cron.schedule while the
+-- direct transport/security requirements conflict. See supabase/DEPLOY.md and AUTOSYNC.md.
+
+-- Safe metadata-only diagnostics (no request headers/content or Vault values):
+select enabled, revision, sent_revision, verify_revision, ready_revision,
+       request_id, request_revision, last_status, retry_at, diagnostic
+from public.le_catalog_sync_state where id=1;
+select jobid, jobname, schedule, active from cron.job
+where jobname='le-catalog-sync-debounce';
+
+-- One-command rollback after the new migration:
+-- select public.le_catalog_sync_disable();

@@ -1,0 +1,68 @@
+{
+  "time": "2026-10-12T16:13:26.467Z",
+  "resolver": "Google Public DNS DoH",
+  "results": [
+    {
+      "name": "lady-elka.ru",
+      "type": "A",
+      "status": 0,
+      "answers": [
+        {
+          "name": "lady-elka.ru.",
+          "type": 1,
+          "TTL": 900,
+          "data": "185.32.58.250"
+        }
+      ]
+    },
+    {
+      "name": "lady-elka.ru",
+      "type": "AAAA",
+      "status": 0,
+      "answers": []
+    },
+    {
+      "name": "lady-elka.ru",
+      "type": "CNAME",
+      "status": 0,
+      "answers": []
+    },
+    {
+      "name": "lady-elka.ru",
+      "type": "MX",
+      "status": 0,
+      "answers": []
+    },
+    {
+      "name": "www.lady-elka.ru",
+      "type": "A",
+      "status": 0,
+      "answers": [
+        {
+          "name": "www.lady-elka.ru.",
+          "type": 1,
+          "TTL": 900,
+          "data": "185.32.58.250"
+        }
+      ]
+    },
+    {
+      "name": "www.lady-elka.ru",
+      "type": "AAAA",
+      "status": 0,
+      "answers": []
+    },
+    {
+      "name": "www.lady-elka.ru",
+      "type": "CNAME",
+      "status": 0,
+      "answers": []
+    },
+    {
+      "name": "www.lady-elka.ru",
+      "type": "MX",
+      "status": 0,
+      "answers": []
+    }
+  ]
+}

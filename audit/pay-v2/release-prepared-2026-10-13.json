@@ -1,0 +1,36 @@
+{
+  "time": "2026-10-13T04:29:57.659Z",
+  "branch": "codex/payment-launch-fix",
+  "worktree": "/Users/rafael/Documents/lady-elka-release-2026-10-13/repository",
+  "sourceFiles": [
+    "storefront/client/checkout.js",
+    "storefront/client/index.js",
+    "storefront/client/payment-return.js",
+    "storefront/config/runtime.mjs",
+    "storefront/public/f/catalog-cards.css"
+  ],
+  "release": "90a31a44206bb781a4fd4c06e8090015ba6a90aafc4fb761dd7ba781eea3264d",
+  "pushed": false,
+  "frontendDeployed": false,
+  "dnsChanged": false,
+  "immutableSnapshotPreserved": true,
+  "secretScan": "PASS",
+  "originalRegression": {
+    "passed": 184,
+    "failed": 1
+  },
+  "repairedRegression": {
+    "passed": 1,
+    "failed": 0
+  },
+  "finalPaymentTests": {
+    "passed": 7,
+    "failed": 0
+  },
+  "returnBrowserScenarios": 8,
+  "actualArtifactViewports": [
+    390,
+    1440
+  ],
+  "forms": 131
+}

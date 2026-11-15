@@ -1,0 +1,39 @@
+{
+  "pay": {
+    "version": 53,
+    "hash": "e3b4d3e65dec3aee831d1808f06924304c466571e0e254aa0425d950e5b74f69"
+  },
+  "cronAndResponses": [
+    {
+      "id": 29234,
+      "status_code": 200,
+      "content": "{\"ok\":true,\"checked\":0,\"paid\":0,\"failed\":0}"
+    },
+    {
+      "id": 29235,
+      "status_code": 200,
+      "content": "{\"ok\":true,\"checked\":0,\"delivered\":0,\"incomplete\":0}"
+    },
+    {
+      "id": 29233,
+      "status_code": 200,
+      "content": "{\"ok\":true,\"checked\":0,\"notified\":0}"
+    },
+    {
+      "id": 29232,
+      "status_code": 200,
+      "content": "{\"ok\":true,\"checked\":0,\"notified\":0}"
+    },
+    {
+      "id": 29231,
+      "status_code": 200,
+      "content": "{\"ok\":true,\"checked\":0,\"notified\":0}"
+    }
+  ],
+  "readiness": {
+    "service": "pay-v2",
+    "state": "active",
+    "admission": "open",
+    "confirmation": "alfa-api-poll"
+  }
+}

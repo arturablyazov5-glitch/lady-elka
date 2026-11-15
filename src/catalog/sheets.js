@@ -1,12 +1,13 @@
-// Загрузка товаров из Google Sheets и построение словарей byId / byTitle.
+import { fetchPriceCSV } from './price-recovery.js';
+// Загрузка CSV каталога и построение словарей byId / byTitle.
 import { SHEET_CSV_URL, DECOR_SHEET_CSV_URL } from './config.js';
 import { num, normCat, parseCSV } from './utils.js';
 
 // === ТАБЛИЦА -> dict[title] = Map(category -> [{height,price,diam,branches,offer,discount,categoryRaw}])
 const normId = s => String(s||'').trim().toLowerCase();
 
-export async function loadDict(){
-  const csv = await fetch(SHEET_CSV_URL,{cache:'no-store'}).then(r=>r.text());
+export async function loadDict(cache = 'default'){
+  const csv = await fetchPriceCSV(SHEET_CSV_URL, cache);
   const rows = parseCSV(csv); if(!rows.length) throw new Error('csv empty');
   const head = rows.shift().map(h => String(h||'').trim().toLowerCase().replace(/[ё]/g,'е'));
 
@@ -53,7 +54,7 @@ export async function loadDict(){
     const dpct = num(dpctRaw.replace('%',''));
     const desc = col('description')!=null ? (r[col('description')]||'').trim() : '';
     const phRaw  = col('photos')!=null ? (r[col('photos')]||'') : '';
-    const photos = phRaw.split('|').map(s=>s.trim()).filter(Boolean);
+    const photos = phRaw.split('|').map(photo => photo.trim()).filter(Boolean);
     // вместо aRaw/isActive
     const iActive = col('active');
     const hasActiveCol = iActive != null;
@@ -78,6 +79,7 @@ export async function loadDict(){
     [ ensure(byId,idKey,tRaw), ensure(byTitle,tKey,tRaw) ].filter(Boolean).forEach(entry=>{
       if(!entry.cats.has(cKey)) entry.cats.set(cKey,[]);
       entry.cats.get(cKey).push({
+        variantId: `${idRaw}:${cRaw}:${h}`,
         height:h,
         price:p,
         diam:d||'',
@@ -99,8 +101,8 @@ export async function loadDict(){
 }
 
 // Загрузка таблицы декора (только название и цена)
-export async function loadDecorDict(){
-  const csv = await fetch(DECOR_SHEET_CSV_URL,{cache:'no-store'}).then(r=>r.text());
+export async function loadDecorDict(cache = 'default'){
+  const csv = await fetchPriceCSV(DECOR_SHEET_CSV_URL, cache);
   const rows = parseCSV(csv); if(!rows.length) throw new Error('decor csv empty');
   const head = rows.shift().map(h => String(h||'').trim().toLowerCase().replace(/[ё]/g,'е'));
 
@@ -152,7 +154,7 @@ export async function loadDecorDict(){
     const category = col('category')!=null ? String(r[col('category')]||'').trim() : '';
     const desc = col('description')!=null ? (r[col('description')]||'').trim() : '';
     const phRaw  = col('photos')!=null ? (r[col('photos')]||'') : '';
-    const photos = phRaw.split('|').map(s=>s.trim()).filter(Boolean);
+    const photos = phRaw.split('|').map(photo => photo.trim()).filter(Boolean);
     const variantsRaw = col('variants')!=null ? (r[col('variants')]||'').trim() : '';
 
     const iActive = col('active');
@@ -188,6 +190,7 @@ export async function loadDecorDict(){
         variantsByProductId.set(idKey, []);
       }
       variantsByProductId.get(idKey).push({
+        variantId: `${idRaw}:${category}:${variantsRaw === '-' ? '' : variantsRaw}`,
         variantText: hasVariant ? variantsRaw.trim() : category,
         size: size || '',
         category,
@@ -243,6 +246,7 @@ export async function loadDecorDict(){
     // Добавляем все варианты к товару
     if (variantsList.length > 0) {
       entry.variants = variantsList.map(v => ({
+        variantId: v.variantId,
         variantText: v.variantText, // Полный текст для отображения (например, "120x40x60 (+200 ₽)")
         size: v.size, // Размер для отображения (например, "120х40х60")
         category: v.category || '',

@@ -1,20 +1,47 @@
 # OS
 .DS_Store
 
-# Node (появится после рефакторинга)
+# Node
 node_modules/
 dist/
 *.log
 
 # Секреты — НИКОГДА не коммитим реальные значения env
-# Реальные секреты живут только локально и в консоли Yandex Cloud.
-# В репо есть только шаблон: "Переменные окружения.example.ini"
+# Реальные секреты живут только локально и в supabase secrets.
 Переменные окружения.ini
 .env
 .env.local
+.env.*
+!.env.example
+*.env
+supabase/functions/.env
+# Ключи, сертификаты, сервисные аккаунты, локальные настройки агентов
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+service-account*.json
+*-credentials.json
+.claude/settings.local.json
 
 # Supabase CLI local state
 supabase/.temp/
 
 # Private local subscription state
 app/data/billing.private.json*
+
+# Storefront build outputs and captured binary media (same convention as cloud-preview)
+storefront/dist/
+storefront/production/
+storefront/catalog-media/
+storefront/catalog-import/candidates/
+storefront/audit/
+storefront/public/**/*.jpg
+storefront/public/**/*.jpeg
+storefront/public/**/*.png
+storefront/public/**/*.webp
+storefront/public/**/*.mp4
+storefront/public/**/*.woff
+storefront/public/**/*.woff2

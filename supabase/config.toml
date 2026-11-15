@@ -6,7 +6,15 @@ project_id = "lady-elka"
 [functions.pay]
 verify_jwt = false
 
+# Isolated replacement; its own entry point keeps admission closed during preparation.
+[functions.pay-v2]
+verify_jwt = false
+
 # Публичная точка входа: собственная HMAC-сессия защищает админские маршруты,
 # а CSV-фиды остаются доступны сайту без Supabase JWT.
 [functions.catalog]
+verify_jwt = false
+
+# Public lead intake; validation/rate budget is enforced by the function and DB.
+[functions.lead]
 verify_jwt = false

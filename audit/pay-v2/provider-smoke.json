@@ -1,0 +1,34 @@
+{
+  "time": "2026-10-12T15:50:08.328Z",
+  "scope": "one unpaid invoice and one private message",
+  "orderId": "LEV2QA-1791820208329",
+  "amountRub": 100,
+  "chargeAttempted": false,
+  "publicCheckoutTested": false,
+  "legacyWrites": false,
+  "privateRecipientVerified": true,
+  "registration": "confirmed",
+  "paymentId": "00216fb7-b3bd-77cf-b516-46be0303ca98",
+  "paymentUrlReceived": true,
+  "bankStatus": {
+    "http": 200,
+    "errorCode": "0",
+    "orderStatus": 0,
+    "amountKopecks": 10000,
+    "orderNumberMatches": true
+  },
+  "isolatedQueueVerified": true,
+  "telegram": {
+    "state": "confirmed",
+    "privateChat": true,
+    "recipientMatches": true,
+    "messageAcknowledged": true,
+    "messageId": 217
+  },
+  "success": true,
+  "finalChecks": {
+    "legacyPayVersionUnchanged": true,
+    "legacyPayHashUnchanged": true,
+    "v2AdmissionStillClosed": true
+  }
+}

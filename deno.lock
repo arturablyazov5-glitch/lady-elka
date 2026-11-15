@@ -165,6 +165,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@electric-sql/pglite@~0.5.8",
         "npm:esbuild@0.24",
         "npm:sharp@~0.35.4"
       ]

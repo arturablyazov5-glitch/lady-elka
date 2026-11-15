@@ -70,3 +70,5 @@ dialog[open]{animation:catalog-enter .22s ease-out both}
 .controls-panel .filter-bar{flex:1;min-width:0}
 .controls-panel .filter-bar .search-control{min-width:120px}
 @media(max-width:900px){.controls-panel{flex-wrap:wrap}.controls-panel .catalog-toolbar{width:100%}.controls-panel .filter-bar{width:100%;flex-basis:100%}}
+
+.site-publish{margin-bottom:20px}.site-publish-actions{display:flex;gap:12px;flex-wrap:wrap}.site-publish p{margin:12px 0 0}.site-publish a{display:inline-block;margin-top:8px}.site-publish a[hidden]{display:none}#publish-confirm{max-width:520px;width:calc(100% - 32px);padding:24px;border:0;border-radius:20px}#publish-confirm::backdrop{background:rgba(0,0,0,.4)}#publish-confirm .site-publish-actions{margin-top:24px}.site-publish [data-state="error"]{color:#a52222}

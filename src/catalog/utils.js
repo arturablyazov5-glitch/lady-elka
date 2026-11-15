@@ -59,6 +59,16 @@ export function haveBuilderFields(form){
   return labels.every(n => !!findField(form, n));
 }
 
+export function formatCartItem(item){
+  const decor = String(item.category || '').trim() === 'Декор';
+  return [
+    item.name || 'Товар',
+    item.height ? (decor ? String(item.height) : `${item.height} см`) : '',
+    item.variantType || '',
+    item.category ? `(${item.category})` : '',
+  ].filter(Boolean).join(' ');
+}
+
 export function fillBuilderFields(form, item){
   const set = (label, val) => {
     const el = findField(form, label);
@@ -72,9 +82,7 @@ export function fillBuilderFields(form, item){
   const itemTotal = price * qty;
 
   const itemDesc = [
-    item.name || 'Товар',
-    item.height ? `${item.height} см` : '',
-    item.category ? `(${item.category})` : '',
+    formatCartItem(item),
     qty > 1 ? `x${qty}` : '',
     `${itemTotal} ₽`
   ].filter(Boolean).join(' ');
@@ -112,9 +120,7 @@ export function fillBuilderFieldsMultiple(form, cart){
     const qty = Number(item.qty||1);
     const itemTotal = price * qty;
 
-    const parts = [item.name || 'Товар'];
-    if(item.height) parts.push(`${item.height} см`);
-    if(item.category) parts.push(`(${item.category})`);
+    const parts = [formatCartItem(item)];
     if(qty > 1) parts.push(`x${qty}`);
     parts.push(`${itemTotal} ₽`);
     return parts.join(' ');

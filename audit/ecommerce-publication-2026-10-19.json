@@ -1,0 +1,18 @@
+{
+  "site": "https://lady-elka.ru/",
+  "commit": "0db482d80343f0cbb369d0387e2c4b4ec6fb6efc",
+  "timewebApp": 266305,
+  "deploy": "e758b0ea-5348-4723-bb54-0db919709954",
+  "status": "success",
+  "counter": 113669509,
+  "scope": "full static storefront production build from current published sources plus ecommerce",
+  "checks": {
+    "exactHttpBytes": 10,
+    "browserImpressions": 3,
+    "browserUniqueImpressions": 3,
+    "browserAdd": 1,
+    "browserRemove": 1,
+    "consoleErrors": 0
+  },
+  "purchase": "tests only; no real order placed; Metrika reports not verified"
+}

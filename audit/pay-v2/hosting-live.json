@@ -1,0 +1,59 @@
+{
+  "checkedAt": "2026-10-12T16:06:20.935Z",
+  "base": "https://arturablyazov5-glitch-lady-elka-cloud-preview-3626.twc1.net",
+  "results": [
+    {
+      "path": "/",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/tree/miranda/",
+      "status": 200,
+      "location": null,
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/person",
+      "status": 308,
+      "location": "/person/",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/spasibo",
+      "status": 308,
+      "location": "/spasibo/",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/pay-return",
+      "status": 308,
+      "location": "/pay-return/",
+      "contentType": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/sitemap.xml",
+      "status": 200,
+      "location": null,
+      "contentType": "text/xml; charset=utf-8"
+    },
+    {
+      "path": "/robots.txt",
+      "status": 200,
+      "location": null,
+      "contentType": "text/plain; charset=utf-8",
+      "body": "User-agent: *\nDisallow: /my/\nDisallow: /thumb/*/d/fgs16_*\nDisallow: /d/fgs16_*\nDisallow: /thumb/*/d/tpl25_*\nDisallow: /d/tpl25_*\nDisallow: /thumb/*/d/stp25_*\nDisallow: /d/stp25_*\nSitemap: https://lady-elka.ru/sitemap.xml\n\nUser-Agent: Yandex\nAllow: /\nDisallow: /my/\nDisallow: /thumb/*/d/fgs16_*\nDisallow: /d/fgs16_*\nDisallow: /thumb/*/d/tpl25_*\nDisallow: /d/tpl25_*\nDisallow: /thumb/*/d/stp25_*\nDisallow: /d/stp25_*\nHost: https://lady-elka.ru\nSitemap: https://lady-elka.ru/sitemap.xml\n\nUser-agent: msnbot\nCrawl-delay: 10\n\nUser-agent: MJ12bot\nDisallow: /\n\nUser-agent: AhrefsBot\nDisallow: /\n\nUser-agent: SemrushBot\nDisallow: /\n\nUser-agent: SemrushBot-SA\nDisallow: /\n\nUser-agent: DotBot\nDisallow: /\n\nUser-agent: SBarkrowler\nDisallow: /\n\nUser-agent: BLEXBot\nDisallow: /"
+    },
+    {
+      "path": "/build-manifest.json",
+      "error": "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"
+    },
+    {
+      "path": "/__missing_launch_check__",
+      "status": 404,
+      "location": null,
+      "contentType": "text/html; charset=utf-8"
+    }
+  ]
+}

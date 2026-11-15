@@ -1,0 +1,33 @@
+{
+  "time": "2026-10-12T16:10:22.260Z",
+  "legacyPayUnchanged": true,
+  "payVersion": 52,
+  "cron": [
+    {
+      "jobname": "keep-alive-pay-function",
+      "schedule": "0 5 */3 * *",
+      "active": true
+    },
+    {
+      "jobname": "lady-elka-payment-poll",
+      "schedule": "*/2 * * * *",
+      "active": true
+    },
+    {
+      "jobname": "lady-elka-pro-renewal",
+      "schedule": "*/15 * * * *",
+      "active": false
+    },
+    {
+      "jobname": "lady-elka-lead-retry",
+      "schedule": "*/2 * * * *",
+      "active": false
+    }
+  ],
+  "readiness": {
+    "service": "pay-v2",
+    "state": "prepared",
+    "admission": "closed",
+    "callbackRoutingVerified": false
+  }
+}

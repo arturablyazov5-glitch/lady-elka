@@ -1,0 +1,23 @@
+# Independent blog-only candidate review — 04.10.2026
+
+**Safe scope: YES** для локального artifact /private/tmp/lady-elka-blog-only-20261004-02 относительно exact baseline 40486e1edfeaf1b2faeb415e53f5f610e0f0c4c9. Это review scope исходников, не разрешение публикации и не proof live CRUD/payment. Published=false. Изменены только этот новый audit и собственные integration-qa/admin-blog-only-review/**; чужие source/artifact bytes не менялись. Без browser повторов, suites, fetch/commit/push, remote/API/session/provider операций.
+
+## Независимая проверка
+
+Команда: `python3 integration-qa/admin-blog-only-review/check.py`. Exit 0. Checker не импортирует assembler и не вызывает его тесты: самостоятельно читает exact baseline blobs через локальные git ls-tree/git show, вычисляет SHA-256 и проверяет artifact. Evidence: check.py, check.log, result.json.
+
+- Baseline: 28 regular public files. Artifact baseline/app/public соответствует всем Git blobs; manifest baseline blobSHA/SHA-256 проверены против exact commit. Site и candidate/app/public имеют одинаковые 32 файла/байта, без symlinks или лишних файлов.
+- Ровно шесть delta: index.html, js/app.js, css/blog.css, js/blog.js, js/blog-model.js, js/blog-rich-editor.js. 26 остальных baseline файлов полностью совпадают, включая css/payment.css, js/payment.js, js/profile.js, assets/bank_card.svg, assets/sbp-full.svg и все прочие baseline assets/CSS/modules.
+- Четыре blog файла совпадают побайтно с canonical app/public sources. Blog CSS selectors ограничены blog classes/IDs. Новые модули работают с blog editor/API; canonical bytes сохранены без заимствования current payment/profile modules.
+- Index содержит ровно пять уникальных blog fragments (stylesheet, sidebar nav, section/form, link dialog, script). Их содержимое и SHA-256 совпадают с current source fragments и manifest. Удаление только этих fragments и добавленного separator newline восстанавливает exact baseline index bytes. Следовательно существующие payment/profile DOM и script bindings сохранены.
+- App.js отличается только строкой navigate: blog в двух списках и blog title map entry. Обратное удаление этих literal добавлений восстанавливает весь baseline app.js, включая $$ bindings. Candidate не содержит current payment-success navigation, payment-success-page или pro-ticket DOM. Прежний generic baseline payment-success CSS сохранён побайтно.
+- Manifest files/bytes/SHA-256, delta/baselineSHA256, canonical sources/current index hash/fragments, unchangedBaselineFiles=26, workflow hash и patch hash соответствуют реальным байтам. Все пять точных хешей, приведённых авторским audit (patch/index/app/payment CSS/workflow), независимо сверены и найдены в отчёте.
+- Patch headers ограничены шестью разрешёнными app/public путями. Во внешнем mkdtemp созданы public files из git show exact baseline плюс baseline workflow; git apply -p2 --check и git apply -p2 завершились успешно. Полученный public tree идентичен artifact site по всем байтам; workflow сохранился. TEMP удалён, patch не применялся к main tree.
+
+Browser-report.json соответствует размеру/списку release tree: 32 served paths, пустые error/blocked arrays, liveAPIVerified=false и published=false. Сам факт browser interactions остаётся evidence автора, не новый browser proof этого review. Поскольку byte/scope проверка не выявила неясности, browser не повторялся.
+
+## Gaps и production gate
+
+Scope defects в проверенном artifact не найдены. Manifest и apply не делают candidate самостоятельным commit или deploy: scripts/build-admin-blog-only-release.mjs:55 записывает внешний candidate, тогда как .github/workflows/pages.yml:29 копирует app/public из checkout и :33 загружает site. Trigger: публикация workflow от current mixed main/dirty sources без согласованного candidate snapshot. Consequence: уйдёт иной source set, включая смешанные blog/payment изменения. Следовательно нужен отдельно согласованный immutable Git/release snapshot именно этих candidate bytes и сверка manifest перед publication; текущий mixed app/public не публиковать как «только блог».
+
+Baseline live serving подтверждалось другим чатом 03.10.2026 (audit/admin-published-baseline.md); здесь remote не перепроверялся. Перед разрешённой публикацией требуется актуальная сверка destination/deployment, чтобы не перезаписать возможный последующий release. Live authenticated blog CRUD/HMAC/CORS по-прежнему требует настоящей session/readback; offline synthetic browser этого не доказывает. Настоящая оплата, physical Safari/iPhone и production API здесь не проверялись. Отдельная явная авторизация push/publication остаётся обязательной. Safe scope YES относится только сохранённому локальному candidate и указанному baseline.

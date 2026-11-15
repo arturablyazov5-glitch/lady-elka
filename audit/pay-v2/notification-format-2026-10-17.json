@@ -1,0 +1,15 @@
+{
+  "time": "2026-10-17T08:23:15.253Z",
+  "function": "pay-v2",
+  "version": 8,
+  "deployedSourceMatches": true,
+  "readiness": "active/open",
+  "legacyPayUnchanged": true,
+  "test": {
+    "privateRecipientVerified": true,
+    "messageId": 224,
+    "telegramAcknowledged": true,
+    "orderCreated": false,
+    "paymentCreated": false
+  }
+}

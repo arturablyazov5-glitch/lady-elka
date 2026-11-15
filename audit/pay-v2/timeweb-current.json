@@ -1,0 +1,27 @@
+{
+  "id": 266305,
+  "status": "active",
+  "domains": [
+    {
+      "fqdn": "arturablyazov5-glitch-lady-elka-cloud-preview-3626.twc1.net",
+      "is_technical": true,
+      "is_external": false,
+      "dns_record_id": null
+    }
+  ],
+  "commit_sha": "eb73783cd6f89a617b39df5bd0abfa049b03aeb5",
+  "is_auto_deploy": false,
+  "requests_limit": 10000,
+  "index_dir": "/",
+  "build_cmd": "",
+  "branch": "main",
+  "repository": {
+    "id": "869dec78-bcf2-47e2-ab01-e32c2023d56b",
+    "name": "lady-elka-cloud-preview",
+    "full_name": "arturablyazov5-glitch/lady-elka-cloud-preview",
+    "url": "https://github.com/arturablyazov5-glitch/lady-elka-cloud-preview",
+    "is_private": false,
+    "is_allowed_webhook": false
+  },
+  "configuration": null
+}

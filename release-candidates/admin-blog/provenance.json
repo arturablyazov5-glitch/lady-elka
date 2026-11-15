@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "createdDate": "2026-10-04",
+  "sourceArtifact": "/private/tmp/lady-elka-blog-only-20261004-02",
+  "baselineSHA": "40486e1edfeaf1b2faeb415e53f5f610e0f0c4c9",
+  "snapshotRoot": "source",
+  "manifestSHA256": "11ba1bbeafee853c22fc1f9d2f68557cd30214a2ad52184bb41717c4b8c5e3c2",
+  "patchSHA256": "10193fdd24a02423bc5602174fdfec413e89532b29589fe9c686fce03a56d1e3",
+  "independentReviewSHA256": "be98c68161656dda08ae9402f28fbe86cac7441f83974d17482a1e70bd64e6f3",
+  "references": [
+    {
+      "path": "scripts/build-admin-blog-only-release.mjs",
+      "sha256": "d6695fad8e6953292e05bb5f2520220359c2f2e84d59deaece2717ebd4170c51"
+    },
+    {
+      "path": "audit/admin-blog-only-release.md",
+      "sha256": "9cf6af5e962af0308027030f50116c9689272463f644e90a6ec6d98820ef7689"
+    },
+    {
+      "path": "audit/admin-blog-only-independent-review.md",
+      "sha256": "4b683b2f76f9a4041116bd794335df2c00c9ec24e5a1e11f563b80c489ca31c6"
+    },
+    {
+      "path": "audit/admin-published-baseline.md",
+      "sha256": "dfcf25f3c20133940b2959b2ce601d1b26dc024c497c9d0f840c508341a9d106"
+    }
+  ],
+  "published": false,
+  "committed": false
+}

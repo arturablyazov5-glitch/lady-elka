@@ -1,0 +1,35 @@
+name: Catalog autosync (disabled until owner enables)
+on:
+  workflow_dispatch:
+  repository_dispatch:
+    types: [catalog_changed]
+  schedule:
+    - cron: '7,27,47 * * * *'
+permissions: {}
+concurrency:
+  group: lady-elka-catalog-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    if: vars.LE_CATALOG_SYNC_ENABLED == 'true'
+    # Dedicated persistent machine: immutable snapshots/media and pointer survive workflow runs.
+    # Do not check out/reset the shared dirty development workspace here.
+    runs-on: [self-hosted, lady-elka-catalog]
+    environment: catalog-production
+    timeout-minutes: 20
+    steps:
+      - name: Guarded build and atomic Timeweb publication
+        shell: bash
+        env:
+          LE_SYNC_WORKSPACE: ${{ vars.LE_SYNC_WORKSPACE }}
+          LE_DEPLOY_METHOD: ${{ vars.LE_DEPLOY_METHOD }}
+          LE_DEPLOY_RSYNC_TARGET: ${{ secrets.LE_DEPLOY_RSYNC_TARGET }}
+          LE_DEPLOY_SSH_KEY: ${{ vars.LE_DEPLOY_SSH_KEY }}
+          LE_DEPLOY_SSH_PORT: ${{ vars.LE_DEPLOY_SSH_PORT }}
+          TG_BOT_TOKEN: ${{ secrets.TG_BOT_TOKEN }}
+          LE_SYNC_TG_CHAT_ID: ${{ secrets.LE_SYNC_TG_CHAT_ID }}
+        run: |
+          test -n "$LE_SYNC_WORKSPACE"
+          test "$LE_DEPLOY_METHOD" = rsync
+          cd "$LE_SYNC_WORKSPACE"
+          node scripts/catalog-sync.mjs --apply --publish=rsync --mode=production
