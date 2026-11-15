@@ -1,6 +1,6 @@
 # Деплой бэкенда на Supabase
 
-**2026-10-12: безопасная подготовка рядом со старым сайтом.** Отдельный `pay-v2` уже развёрнут с закрытым приёмом; SQL использует namespace `le_v2_*`. Прежний `pay` v52 и legacy cron не менялись. Новая локальная storefront production-сборка указывает на `pay-v2`; опубликованный сайт пока прежний. До включения проверить отдельные callback банка и Telegram. Детали и доказательства: [audit/pay-v2/README.md](../audit/pay-v2/README.md). Старый порядок замены `pay` ниже не применять для параллельной подготовки.
+**2026-10-12: безопасная подготовка рядом со старым сайтом.** Отдельный `pay-v2` уже развёрнут с закрытым приёмом; SQL использует namespace `le_v2_*`. Прежний `pay` v52 и legacy cron не менялись. Новая локальная storefront production-сборка указывает на `pay-v2`; опубликованный сайт пока прежний. До включения проверить отдельные callback банка и Telegram. Старый порядок замены `pay` ниже не применять для параллельной подготовки.
 
 Проект: **mgnotvaahftrbifqtahf** (`https://mgnotvaahftrbifqtahf.supabase.co`)
 Функция: `supabase/functions/pay/index.ts` — платежи PayKeeper + webhook → Telegram (`verify_jwt=false` в `config.toml`).
